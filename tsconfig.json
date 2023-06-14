@@ -1,0 +1,32 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "es6",
+        "declaration": true,
+        "sourceMap": true,
+        "esModuleInterop": true,
+        "baseUrl": ".",
+        "outDir": "dist",
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "skipLibCheck": true,
+        "paths": {
+            "*": [
+                "node_modules/*"
+            ]
+        },
+        "lib": [
+            "es2021",
+            "dom"
+        ]
+    },
+    "exclude": [
+        "node_modules",
+        "/node_modules"
+    ],
+    "include": [
+        "index.ts",
+        "src/**/*",
+        "scripts/**/*"
+    ]
+}
