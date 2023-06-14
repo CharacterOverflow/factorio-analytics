@@ -29,6 +29,5 @@ export class Blueprint {
 
     // What other details should be included in this class? Open the blueprint and list entities? What is needed?
     // This is being left a full complete class as I expect many things to be added here in the future
-    // #TODO
 
 }

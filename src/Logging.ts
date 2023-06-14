@@ -1,6 +1,4 @@
 import winston, {format} from "winston"
-import path from "path";
-import * as fs from "fs";
 
 // Central static method for logging, so that I don't need to import the logger everywhere, and I can change the logger implementation later if I want to.
 export class Logging {
@@ -18,19 +16,6 @@ export class Logging {
             exitOnError: false,
             transports: transports
         };
-
-        // if (this.options.logging.includes('console'))
-        //     cObj.transports.push(new (winston.transports.Console)({
-        //         level: 'info',
-        //     }));
-        //
-        // if (this.options.logging.includes('file'))
-        //     cObj.transports.push(new winston.transports.File(
-        //         {filename: 'error.log', level: 'info'}),
-        //     )
-
-        //if (this.options.logging.includes('grafana'))
-        //cObj.transports.push(???)
 
         this._innerLogger = winston.createLogger(cObj);
     }

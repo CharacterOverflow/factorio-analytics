@@ -5,7 +5,7 @@
 
 import {randomUUID} from "crypto";
 import {Logging} from "./Logging";
-import {Dataset, IDatasetMeta, IGameFlowTick, ISystemTick} from "./Dataset";
+import {Dataset} from "./Dataset";
 import {Blueprint} from "./Blueprint";
 
 export interface ITrialParams {
