@@ -35,17 +35,6 @@ class Logging {
             exitOnError: false,
             transports: transports
         };
-        // if (this.options.logging.includes('console'))
-        //     cObj.transports.push(new (winston.transports.Console)({
-        //         level: 'info',
-        //     }));
-        //
-        // if (this.options.logging.includes('file'))
-        //     cObj.transports.push(new winston.transports.File(
-        //         {filename: 'error.log', level: 'info'}),
-        //     )
-        //if (this.options.logging.includes('grafana'))
-        //cObj.transports.push(???)
         this._innerLogger = winston_1.default.createLogger(cObj);
     }
     // populate 'message' on obj first!!! message field is what gets used

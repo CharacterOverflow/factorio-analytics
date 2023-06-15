@@ -93,20 +93,21 @@ await Factory.runTrial(t);
 fs.writeFileSync('output.json', t.data);
 
 ```
-
 ### Analyze and Use Data
+View all output data types [here](dist/src/Dataset.d.ts)
 ```ts
 // After running the trial, data is available...
 let d: Dataset = trial.data;
 
 // processed data aligned with tickrate is available in respective variables... 
 // each below is an array potentially thousands long, containing values over time (in ticks)
+// See types at 
 let export = {
-    itemStats: d.itemStats,
-    elecStats: d.elecStats,
-    circStats: d.circStats,
-    pollStats: d.pollStats,
-    sysStats: d.sysStats,
+    itemStats: d.itemStats, // IGameFlowTick
+    elecStats: d.elecStats, // IGameElectricTick
+    circStats: d.circStats, // IGameCircuitTick
+    pollStats: d.pollStats, // IGamePollutionTick
+    sysStats: d.sysStats,   // ISystemTick
 }
 
 // If you choose to export raw files (NOT process data, keeping it raw) then the files variable will be set, 
@@ -126,8 +127,48 @@ let inserterPowerRatio = data
 
 // NOTE - you MUST be recording the needed data with the trial for certain functionality to work. For example, you cannot
 // calculate the 'inserterPowerRatio' above without recording elecStats (make sure elecInterval is defined)
-
 ```
+
+### The 'Dataset' that is returned from running a trial can look something like this...
+
+![Example_Output.png](Example_Output.png)
+
+## Advanced 
+
+The following information is useful if you're attempting to...
+- Add mods to the benchmarking process
+- Change world settings (such as the 500x500 limit)
+- Want to update your scenario to a specific version of Factorio
+  - If the scenario version is different than the executable, then there is an added delay due to a 'migration' process
+  - Compiling your own scenario using your install would solve this
+
+### Compiling your own benchmark scenario
+
+To compile your own scenario file...
+1. Copy factory/scenario-source folder to your factorio/scenarios location (so that factorio sees it as a scenario)
+2. Run ```factorio -m scenario-source```
+3. In your 'saves' location, there should now be a file called 'scenario-source.zip'. Copy everything inside of this zip
+to factorio-analytics/factory/scenario, overwriting all files.
+
+From this, your custom scenario should now be used in any benchmarks. If you managed to get mods working and through the 'conversion' process above,
+then it SHOULD be able to function without issues. Note that making a custom scenario is only 1 part of getting mods working.
+
+**NOTE** - in some mods, the scenario has issues loading or converting due to requiring a 'player' character in-game, which we do not have.
+I have found that simply copying the level.dat files from the 'vanilla' scenario to the 'modded' scenario can get it to at least run, but it likely
+misses important startup steps required for mods to function. I have tested this with basic Krastorio blueprints and bases without any real issues,
+but can't guarantee anything will work for real
+
+### Adding mods
+
+You might have noticed that there is a folder here factory/mods. If you copy your entire 'mods' directory for Factorio into this folder,
+those mods and their settings will be loaded for the benchmark. 
+
+**NOTE** - it is HIGHLY RECOMMENDED that you compile a custom benchmark scenario when doing this as well. Otherwise, trials take MUCH longer to run due to
+the 'migration' process, which may not even be successful depending on the type/complexity of the mods in question.
+
+**NOTE 2** - Any mods that manipulate / use surfaces for their features (such as warehouses) will not function as intended - I am honestly
+not even sure if the blueprint will even place it correctly.
+
 
 ## CLI Usage
 

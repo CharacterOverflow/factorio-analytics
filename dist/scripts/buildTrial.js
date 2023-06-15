@@ -74,7 +74,7 @@ Factory_1.Factory.initialize({
     });
 }).then((trial) => {
     return Factory_1.Factory.buildTrial(trial);
-}).then((trial) => {
+}).then(() => {
     // Trial has been built! Ready for execution - inform user of how to run it
     Logging_1.Logging.log('info', `Done! You can now manually run the trial via CLI using the command above, or load Factorio (your installation used for this package) and start a new scenario called 'benchmark-cli'. As soon as you load in, the trial has started and will continue until you exit`);
 }).then(() => {
