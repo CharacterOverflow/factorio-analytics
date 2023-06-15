@@ -1,4 +1,4 @@
-# factorio-analytics
+# Factorio-Analytics
 
 A package that gives you in-depth details and statistics about your blueprint's in-game functionality
 
@@ -191,7 +191,10 @@ requires a player character in-game, it will likely not function correctly.
 
 ## CLI Usage
 
-Want to use all this functionality in a different application, or just otherwise access it via CLI? There are 2 premade scripts that you can use
+Want to use all this functionality in a different application, or just otherwise access it via CLI? There are 2 premade scripts that you can use.
+
+
+**NOTE** YOU MUST SPECIFY THE ENVIRONMENT VARIABLES FACTORIO_INSTALL AND FACTORIO_DATA
 
 #### buildTrial
 
