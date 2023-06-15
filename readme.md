@@ -9,6 +9,19 @@ This library utilizes the factorio executable on your local machine, so a copy o
 - Linux (Though, Windows *should* work fine as well)
 - A separate install of Factorio, downloaded from their website.
   - This can help keep mods and settings separate between your gaming install and your code install
+- A Factorio Blueprint that you want to test / analyze
+  - Remember to add Infinity Chests to your blueprint to spawn source items! If your blueprint does not include these to provide items, nothing will be done in-game
+
+### Project Ideas
+
+I don't have the time for all of these projects, but these are some examples of what could be made using this package...
+
+- Blueprint Chart - to view a factory's results graphically on a site or straight to PNG
+- Blueprint Ranking / Competition - score blueprints by their actual outputs, highlighting far more data to compare them
+- Blueprint AI Model - if enough data is collected, could an AI learn to generate effective blueprints? This package can help test and train an AI
+- Blueprint Library Electron app - would be cool to have a factorio-assistant on the side, that can more intelligently manage all my blueprints
+
+Go crazy! Show us all what you make, and I'd love to add your project to this document.
 
 ## Getting Started
 
@@ -138,36 +151,42 @@ let inserterPowerRatio = data
 The following information is useful if you're attempting to...
 - Add mods to the benchmarking process
 - Change world settings (such as the 500x500 limit)
+- Add resource patches at certain spots to line up for a specific blueprint you have in mind
 - Want to update your scenario to a specific version of Factorio
   - If the scenario version is different than the executable, then there is an added delay due to a 'migration' process
   - Compiling your own scenario using your install would solve this
 
-### Compiling your own benchmark scenario
-
-To compile your own scenario file...
-1. Copy factory/scenario-source folder to your factorio/scenarios location (so that factorio sees it as a scenario)
-2. Run ```factorio -m scenario-source```
-3. In your 'saves' location, there should now be a file called 'scenario-source.zip'. Copy everything inside of this zip
-to factorio-analytics/factory/scenario, overwriting all files.
-
-From this, your custom scenario should now be used in any benchmarks. If you managed to get mods working and through the 'conversion' process above,
-then it SHOULD be able to function without issues. Note that making a custom scenario is only 1 part of getting mods working.
-
-**NOTE** - in some mods, the scenario has issues loading or converting due to requiring a 'player' character in-game, which we do not have.
-I have found that simply copying the level.dat files from the 'vanilla' scenario to the 'modded' scenario can get it to at least run, but it likely
-misses important startup steps required for mods to function. I have tested this with basic Krastorio blueprints and bases without any real issues,
-but can't guarantee anything will work for real
-
 ### Adding mods
 
-You might have noticed that there is a folder here factory/mods. If you copy your entire 'mods' directory for Factorio into this folder,
-those mods and their settings will be loaded for the benchmark. 
+You might have noticed that there is a folder here that contains mods (factory/mods). By default, it contains the recipe-lister mod which will likely be used in future features. 
+If you copy your entire 'mods' directory for Factorio into this folder, those mods and their settings will be loaded for the benchmark!
+
+It's that easy - just copy your entire 'mods' folder to the factory folder here, then run your benchmark!
 
 **NOTE** - it is HIGHLY RECOMMENDED that you compile a custom benchmark scenario when doing this as well. Otherwise, trials take MUCH longer to run due to
 the 'migration' process, which may not even be successful depending on the type/complexity of the mods in question.
 
 **NOTE 2** - Any mods that manipulate / use surfaces for their features (such as warehouses) will not function as intended - I am honestly
 not even sure if the blueprint will even place it correctly.
+
+### Compiling your own benchmark scenario
+
+To compile your own scenario file...
+1. Copy factory/scenario-source folder to your factorio/scenarios location (so that factorio sees it as a scenario)
+2. Make any desired changes to the scenario in 'Map Editor'
+3. Run ```factorio -m scenario-source```
+4. In your 'saves' location, there should now be a file called 'scenario-source.zip'. Copy everything inside of this zip
+to factorio-analytics/factory/scenario, overwriting all files.
+
+From this, your custom scenario should now be used in any benchmarks, with whatever changes you made!
+
+If you managed to get mods working and through the 'conversion' process above, then it SHOULD be able to function without issues. 
+A custom scenario is NOT required for mods, but it will ensure everything works correctly and overall be faster due to not needing a migration.
+
+**NOTE** - not all mods are going to work with this. In particular, if the mod manipulates the 'surface' with a blueprint (Warehousing mods, for example) or
+requires a player character in-game, it will likely not function correctly.
+
+
 
 
 ## CLI Usage

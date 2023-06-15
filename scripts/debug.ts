@@ -23,7 +23,7 @@ const argv = minimist(process.argv.slice(2));
 console.log('Reading in CLI args...');
 //console.table(argv);
 
-const bpFile = path.join(process.cwd(), 'factory/examples/smallbase.txt');
+const bpFile = path.join(process.cwd(), 'factory/examples/k2_starter.txt');
 const length = 18000 /// 5 minutes
 
 const itemInterval = 300

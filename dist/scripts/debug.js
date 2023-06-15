@@ -46,7 +46,7 @@ dotenv.config();
 const argv = (0, minimist_1.default)(process.argv.slice(2));
 console.log('Reading in CLI args...');
 //console.table(argv);
-const bpFile = path_1.default.join(process.cwd(), 'factory/examples/smallbase.txt');
+const bpFile = path_1.default.join(process.cwd(), 'factory/examples/k2_starter.txt');
 const length = 18000; /// 5 minutes
 const itemInterval = 300;
 const elecInterval = 60;
