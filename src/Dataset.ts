@@ -305,7 +305,7 @@ export class Dataset {
     *       --- The common term 'all' will aggregate all data for the category, and return a single value
     * -- direction - if consumed or produced. For pollution, 'cons' will just inverse the value.
     * */
-    get(filter: IDatasetFilter) : DatasetFragment {
+    get(filter: IDatasetFilter): DatasetFragment {
         // both filter and direction are needed
         // fill in the blanks first - pollution does not need filter or direction.
         if (filter.category != 'pollution') {
@@ -324,33 +324,6 @@ export class Dataset {
 
         // any other processing is done via the fragment, likely using 'per' function
     }
-
-    /*
-    * What analytical data do we really want to see about a blueprint's run? Likely...
-    * - min/avg/max/stddev of game item data
-    * - min/avg/max/stddev of electric network data, PER NETWORK or TOTAL, depending
-    * - min/avg/max/stddev of circuit network data, PER CIRCUIT NETWORK (no total, doesn't make sense for circuits)
-    * - min/avg/max/stddev of pollution information
-    *
-    * A function to then calculate more specific values should be dynamic enough, such as....
-    *
-    * Ex1. Getting pollution produced per coal consumed
-    * Dataset.get(pollution produced).per(coal consumed)
-    * -- Dataset.get() would return all pollution produced in dataset, and return an object containing the Dataset along with the value requested
-    * -- <object>.per() would then use the Dataset.get() function again, saving the results in the same object
-    * -- <object>.reduce() would then reduce the denominator to 1, then returning the final value.
-    *
-    *That's one way, and would give decent utility in general to grab other data without processing.
-    *
-    * Ex2. Getting electricity used per item (any) produced
-    *
-    *
-
-    *
-    * */
-
-
-
 
     /*
     * Private Static utility functions below - all used in the parsing of core data during the 'process' function
@@ -750,11 +723,11 @@ export class DatasetFragment implements IDatasetSummary {
             const dir = this.direction;
             const label = this.label;
 
-            if (label  === 'all') {
-                this.values = this.dataset.itemStats.map(function(i) {
+            if (label === 'all') {
+                this.values = this.dataset.itemStats.map(function (i) {
                     return i[dir];
                 })
-                this.ticks = this.dataset.itemStats.map(function(i) {
+                this.ticks = this.dataset.itemStats.map(function (i) {
                     return i.tick;
                 });
             } else {
@@ -762,10 +735,10 @@ export class DatasetFragment implements IDatasetSummary {
                     return i.label == label;
                 })
 
-                this.values = v.map(function(i) {
+                this.values = v.map(function (i) {
                     return i[dir];
                 })
-                this.ticks = v.map(function(i) {
+                this.ticks = v.map(function (i) {
                     return i.tick;
                 });
             }
@@ -780,29 +753,46 @@ export class DatasetFragment implements IDatasetSummary {
                 let v = this.dataset.elecStats.filter((i) => {
                     return i.label == split[0] && i.networkId == networkId;
                 })
-                this.values = v.map(function(i) {
+                this.values = v.map(function (i) {
                     return i[dir];
                 })
-                this.ticks = v.map(function(i) {
+                this.ticks = v.map(function (i) {
                     return i.tick;
                 })
             } else if (this.label?.toLowerCase() == 'all') {
-                // grab all electric
-                this.values = this.dataset.elecStats.map(function(i) {
-                    return i[dir];
+                // grab all electric, regardless of label. SUM per tick
+                const tg = _.groupBy(this.dataset.elecStats, 'tick');
+                const tot = Object.keys(tg).map((k) => {
+                    return {
+                        tick: Number.parseInt(k),
+                        cons: _.sumBy(tg[k], 'cons'),
+                        prod: _.sumBy(tg[k], 'prod'),
+                    }
                 })
-                this.ticks = this.dataset.elecStats.map(function(i) {
+
+                this.values = tot.map(function (i) {
+                    return i[dir];
+                });
+                this.ticks = tot.map(function (i) {
                     return i.tick;
                 })
             } else {
-                let v = this.dataset.elecStats.filter((i) => {
-                    return i.label == this.label
-                });
 
-                this.values = v.map(function(i) {
+                const tg = _.groupBy(this.dataset.elecStats.filter((i) => {
+                    return i.label == this.label
+                }), 'tick');
+                const tot = Object.keys(tg).map((k) => {
+                    return {
+                        tick: Number.parseInt(k),
+                        cons: _.sumBy(tg[k], 'cons'),
+                        prod: _.sumBy(tg[k], 'prod'),
+                    }
+                })
+
+                this.values = tot.map(function (i) {
                     return i[dir];
                 })
-                this.ticks = v.map(function(i) {
+                this.ticks = tot.map(function (i) {
                     return i.tick;
                 })
             }
@@ -832,12 +822,12 @@ export class DatasetFragment implements IDatasetSummary {
         const avg = this.avg;
 
         // really don't want to include the mathjs library if I don't have to
-        this.std = Math.sqrt(this.values.reduce(function(sq, n) {
+        this.std = Math.sqrt(this.values.reduce(function (sq, n) {
             return sq + Math.pow(n - avg, 2);
         }, 0) / (this.values.length - 1));
     }
 
-    per(filter: IDatasetFilter | DatasetFragment) : DatasetRatio {
+    per(filter: IDatasetFilter | DatasetFragment): DatasetRatio {
 
         let bottomFragment: DatasetFragment;
         if ((filter as DatasetFragment)?.values) {
@@ -859,11 +849,17 @@ export class DatasetRatio {
         return this.top.desc + ' per ' + this.bottom.desc;
     }
 
+    // Describe what this represents
+    get descData() {
+        return `on average, ${this.avg} ${this.desc}`
+    }
+
     top: DatasetFragment;
     bottom: DatasetFragment;
 
     // The TOTAL ratio of top to bottom. Sum of all items -
-    // not  accurate if comparing differing tickrate datasets (like items produced per electric, when items are recorded at 300 ticks and electric at 60)
+    // not accurate if comparing differing tickrate datasets (like items produced per electric, when items are recorded at 300 ticks and electric at 60)
+    // To be clear - ONLY compare datasets with the same tickrate if using total. Otherwise, use avg
     total: number;
 
     // the AVERAGE ratio of top to bottom. Average of all - does not matter on tickrate. Can compare data recorded at 120 ticks to 60 ticks, as its the average of all time.

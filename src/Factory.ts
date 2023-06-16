@@ -91,6 +91,7 @@ export class Factory {
         await Factory.validateInitialization();
     }
 
+    // Ensure everything is set up and ready to go
     static async validateInitialization() {
         // Make sure our factorio executable exists.
         let execExists = fs.pathExists(Factory.executable);
@@ -125,7 +126,7 @@ export class Factory {
 
         // write required mods (there really aren't any "required", but for some of the more advanced features we need the recipe-lister mod to provide us with recipes.
         // this is not automatic either yet - running a scenario or starting a new game is required on this installation first before recipe data is available. After this is done once, the crafting
-        // data is saved.
+        // data is saved. Either way, the code isn't there to read the data - yet.
         try {
             await fs.copy(path.join(__dirname, '../', '../', 'factory', 'mods'), path.join(Factory.dataDir, 'mods'), {overwrite: true});
         } catch (e) {
@@ -139,10 +140,10 @@ export class Factory {
         let trialId = typeof trial === 'string' ? trial : trial.id;
         try {
             await Promise.allSettled([
-                fs.rm(path.join(Factory.dataDir, 'script-output', `${trialId}_item.jsonl`)),
-                fs.rm(path.join(Factory.dataDir, 'script-output', `${trialId}_elec.jsonl`)),
-                fs.rm(path.join(Factory.dataDir, 'script-output', `${trialId}_circ.jsonl`)),
-                fs.rm(path.join(Factory.dataDir, 'script-output', `${trialId}_poll.jsonl`))
+                fs.rm(path.join(Factory.dataDir, 'script-output', 'data', `${trialId}_item.jsonl`)),
+                fs.rm(path.join(Factory.dataDir, 'script-output', 'data', `${trialId}_elec.jsonl`)),
+                fs.rm(path.join(Factory.dataDir, 'script-output', 'data', `${trialId}_circ.jsonl`)),
+                fs.rm(path.join(Factory.dataDir, 'script-output', 'data', `${trialId}_poll.jsonl`))
             ]);
         } catch (e) {
             Logging.log('error', {message: `Failed to delete raw files for trial ${trialId}`, error: e});
@@ -225,8 +226,10 @@ export class Factory {
                 // test has finished - proceed!
                 if (er)
                     reject(er)
+                else if (code === 1)
+                    reject('Could not start executable - is the game currently running?')
                 else
-                    resolve(code);
+                resolve(code);
             });
             s.on('error', (err) => {
                 er = err;

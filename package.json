@@ -1,7 +1,7 @@
 {
   "name": "factorio-analytics",
   "version": "1.0.0",
-  "description": "Scripts for benchmarking factory blueprints and generating files of results",
+  "description": "A package for benchmarking Factorio blueprints, providing detailed results of outputs",
   "repository": {
     "type": "github",
     "url": "https://github.com/CharacterOverflow/factorio-analytics"

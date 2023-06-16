@@ -142,6 +142,7 @@ export declare class DatasetFragment implements IDatasetSummary {
 }
 export declare class DatasetRatio {
     get desc(): string;
+    get descData(): string;
     top: DatasetFragment;
     bottom: DatasetFragment;
     total: number;

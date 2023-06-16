@@ -37,22 +37,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const dotenv = __importStar(require("dotenv"));
-const minimist_1 = __importDefault(require("minimist"));
 const Trial_1 = require("../src/Trial");
 const fs = __importStar(require("fs"));
 const Factory_1 = require("../src/Factory");
 const path_1 = __importDefault(require("path"));
 dotenv.config();
-const argv = (0, minimist_1.default)(process.argv.slice(2));
-console.log('Reading in CLI args...');
-//console.table(argv);
-const bpFile = path_1.default.join(process.cwd(), 'factory/examples/k2_starter.txt');
-const length = 18000; /// 5 minutes
-const itemInterval = 300;
-const elecInterval = 60;
-const circuitInterval = 300;
-const pollInterval = 900;
-const sysInterval = 60;
+const bpFile = path_1.default.join(process.cwd(), 'factory/examples/smallbasev2.txt');
 Factory_1.Factory.initialize({
     installDir: process.env.FACTORIO_INSTALL,
     dataDir: process.env.FACTORIO_DATA,
@@ -69,7 +59,7 @@ Factory_1.Factory.initialize({
         // how many ticks between item data polls (Items/fluids produced and consumed across the factory)
         itemInterval: 300,
         // how many ticks between elec data polls (The power usage and production of the factory, per network)
-        elecInterval: 60,
+        elecInterval: 30,
         // how many ticks between circ data polls (Each circuit network, and the signals on it)
         circInterval: 300,
         // how many ticks between Pollution data polls (The pollution of the factory, total)
@@ -95,8 +85,9 @@ Factory_1.Factory.initialize({
         .get({ category: 'electric', label: 'inserter', direction: 'cons' })
         .per({ category: 'electric', label: 'all', direction: 'cons' });
     let copperProduced = data.get({ label: 'copper-plate', direction: 'prod', category: 'item' });
-    console.log(ratioIronToCoal.desc);
-    console.log(ratioInserterPowerVsAll.desc);
+    console.log(ratioIronToCoal.descData);
+    console.log(ratioInserterPowerVsAll.descData);
+    console.log(`${copperProduced.min} - ${copperProduced.max} (${copperProduced.avg}) += ${copperProduced.std} ` + copperProduced.desc);
     console.log('done!');
 }).then(() => {
     console.log('Done');

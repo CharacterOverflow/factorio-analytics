@@ -139,29 +139,6 @@ class Dataset {
         // any other processing is done via the fragment, likely using 'per' function
     }
     /*
-    * What analytical data do we really want to see about a blueprint's run? Likely...
-    * - min/avg/max/stddev of game item data
-    * - min/avg/max/stddev of electric network data, PER NETWORK or TOTAL, depending
-    * - min/avg/max/stddev of circuit network data, PER CIRCUIT NETWORK (no total, doesn't make sense for circuits)
-    * - min/avg/max/stddev of pollution information
-    *
-    * A function to then calculate more specific values should be dynamic enough, such as....
-    *
-    * Ex1. Getting pollution produced per coal consumed
-    * Dataset.get(pollution produced).per(coal consumed)
-    * -- Dataset.get() would return all pollution produced in dataset, and return an object containing the Dataset along with the value requested
-    * -- <object>.per() would then use the Dataset.get() function again, saving the results in the same object
-    * -- <object>.reduce() would then reduce the denominator to 1, then returning the final value.
-    *
-    *That's one way, and would give decent utility in general to grab other data without processing.
-    *
-    * Ex2. Getting electricity used per item (any) produced
-    *
-    *
-
-    *
-    * */
-    /*
     * Private Static utility functions below - all used in the parsing of core data during the 'process' function
     * If any changes are needed to how data is processed, it's likely below.
     * */
@@ -530,22 +507,37 @@ class DatasetFragment {
                 });
             }
             else if (((_a = this.label) === null || _a === void 0 ? void 0 : _a.toLowerCase()) == 'all') {
-                // grab all electric
-                this.values = this.dataset.elecStats.map(function (i) {
+                // grab all electric, regardless of label. SUM per tick
+                const tg = lodash_1.default.groupBy(this.dataset.elecStats, 'tick');
+                const tot = Object.keys(tg).map((k) => {
+                    return {
+                        tick: Number.parseInt(k),
+                        cons: lodash_1.default.sumBy(tg[k], 'cons'),
+                        prod: lodash_1.default.sumBy(tg[k], 'prod'),
+                    };
+                });
+                this.values = tot.map(function (i) {
                     return i[dir];
                 });
-                this.ticks = this.dataset.elecStats.map(function (i) {
+                this.ticks = tot.map(function (i) {
                     return i.tick;
                 });
             }
             else {
-                let v = this.dataset.elecStats.filter((i) => {
+                const tg = lodash_1.default.groupBy(this.dataset.elecStats.filter((i) => {
                     return i.label == this.label;
+                }), 'tick');
+                const tot = Object.keys(tg).map((k) => {
+                    return {
+                        tick: Number.parseInt(k),
+                        cons: lodash_1.default.sumBy(tg[k], 'cons'),
+                        prod: lodash_1.default.sumBy(tg[k], 'prod'),
+                    };
                 });
-                this.values = v.map(function (i) {
+                this.values = tot.map(function (i) {
                     return i[dir];
                 });
-                this.ticks = v.map(function (i) {
+                this.ticks = tot.map(function (i) {
                     return i.tick;
                 });
             }
@@ -592,6 +584,10 @@ exports.DatasetFragment = DatasetFragment;
 class DatasetRatio {
     get desc() {
         return this.top.desc + ' per ' + this.bottom.desc;
+    }
+    // Describe what this represents
+    get descData() {
+        return `on average, ${this.avg} ${this.desc}`;
     }
     // Will take in  2 datasets, and be able to return various information about its ratio between the two
     constructor(top, bottom) {

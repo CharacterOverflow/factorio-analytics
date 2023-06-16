@@ -1,7 +1,3 @@
-/*
-* This class represents a single 'trial' we intend to run, which is a single execution of the factorio executable
-* The trial itself does not care about the blueprint string or any other BS before this. It only cares to organize data
-* */
 
 import {randomUUID} from "crypto";
 import {Logging} from "./Logging";

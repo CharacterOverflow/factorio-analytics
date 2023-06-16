@@ -115,10 +115,10 @@ class Factory {
             let trialId = typeof trial === 'string' ? trial : trial.id;
             try {
                 yield Promise.allSettled([
-                    fs_extra_1.default.rm(path_1.default.join(Factory.dataDir, 'script-output', `${trialId}_item.jsonl`)),
-                    fs_extra_1.default.rm(path_1.default.join(Factory.dataDir, 'script-output', `${trialId}_elec.jsonl`)),
-                    fs_extra_1.default.rm(path_1.default.join(Factory.dataDir, 'script-output', `${trialId}_circ.jsonl`)),
-                    fs_extra_1.default.rm(path_1.default.join(Factory.dataDir, 'script-output', `${trialId}_poll.jsonl`))
+                    fs_extra_1.default.rm(path_1.default.join(Factory.dataDir, 'script-output', 'data', `${trialId}_item.jsonl`)),
+                    fs_extra_1.default.rm(path_1.default.join(Factory.dataDir, 'script-output', 'data', `${trialId}_elec.jsonl`)),
+                    fs_extra_1.default.rm(path_1.default.join(Factory.dataDir, 'script-output', 'data', `${trialId}_circ.jsonl`)),
+                    fs_extra_1.default.rm(path_1.default.join(Factory.dataDir, 'script-output', 'data', `${trialId}_poll.jsonl`))
                 ]);
             }
             catch (e) {
@@ -195,6 +195,8 @@ class Factory {
                     // test has finished - proceed!
                     if (er)
                         reject(er);
+                    else if (code === 1)
+                        reject('Could not start executable - is the game currently running?');
                     else
                         resolve(code);
                 });

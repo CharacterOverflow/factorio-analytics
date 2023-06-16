@@ -10,7 +10,6 @@
 * */
 
 import * as dotenv from 'dotenv';
-import minimist from 'minimist';
 import {Trial} from "../src/Trial";
 import * as fs from "fs";
 import {Factory} from "../src/Factory";
@@ -18,19 +17,8 @@ import path from "path";
 import {Dataset} from "../src/Dataset";
 
 dotenv.config();
-const argv = minimist(process.argv.slice(2));
 
-console.log('Reading in CLI args...');
-//console.table(argv);
-
-const bpFile = path.join(process.cwd(), 'factory/examples/k2_starter.txt');
-const length = 18000 /// 5 minutes
-
-const itemInterval = 300
-const elecInterval = 60
-const circuitInterval = 300
-const pollInterval = 900
-const sysInterval = 60
+const bpFile = path.join(process.cwd(), 'factory/examples/smallbasev2.txt');
 
 Factory.initialize({
     installDir: process.env.FACTORIO_INSTALL,
@@ -52,7 +40,7 @@ Factory.initialize({
         itemInterval: 300,
 
         // how many ticks between elec data polls (The power usage and production of the factory, per network)
-        elecInterval: 60,
+        elecInterval: 30,
 
         // how many ticks between circ data polls (Each circuit network, and the signals on it)
         circInterval: 300,
@@ -86,10 +74,11 @@ Factory.initialize({
         .per({category: 'electric', label: 'all', direction: 'cons'});
 
 
-    let copperProduced = data.get({ label: 'copper-plate', direction: 'prod', category: 'item'});
+    let copperProduced = data.get({label: 'copper-plate', direction: 'prod', category: 'item'});
 
-    console.log(ratioIronToCoal.desc);
-    console.log(ratioInserterPowerVsAll.desc);
+    console.log(ratioIronToCoal.descData);
+    console.log(ratioInserterPowerVsAll.descData);
+    console.log(`${copperProduced.min} - ${copperProduced.max} (${copperProduced.avg}) += ${copperProduced.std} ` + copperProduced.desc);
     console.log('done!');
 
 }).then(() => {
