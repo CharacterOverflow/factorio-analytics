@@ -72,19 +72,19 @@ class Factory {
     // Ensure everything is set up and ready to go
     static validateInitialization() {
         return __awaiter(this, void 0, void 0, function* () {
-            // Make sure our factorio executable exists.
-            let execExists = fs_extra_1.default.pathExists(Factory.executable);
+            // Make sure our factorio executable exists. SKIP THIS STEP FOR NOW - doesn't work right on windows
+            //let execExists = fs.pathExists(Factory.executable);
             // Make sure our scenario exists
             let scenarioExists = fs_extra_1.default.pathExists(Factory.scenario);
             // ...with a valid file to write into (sandbox.lua)
             let scenarioLuaExists = fs_extra_1.default.pathExists(Factory.sandboxLua);
             // This will 'throw' an error if any of the above fail harshly, or will be thrown if they return false below
-            let d = yield Promise.all([execExists, scenarioExists, scenarioLuaExists]);
+            let d = yield Promise.all([/*execExists, */ scenarioExists, scenarioLuaExists]);
+            //if (d[0] === false)
+            //   throw new Error('Factorio executable not found at ' + Factory.executable);
             if (d[0] === false)
-                throw new Error('Factorio executable not found at ' + Factory.executable);
-            if (d[1] === false)
                 throw new Error('Scenario directory not found at ' + Factory.scenario);
-            if (d[2] === false)
+            if (d[1] === false)
                 throw new Error('Scenario LUA file not found at ' + Factory.sandboxLua);
         });
     }
