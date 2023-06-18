@@ -1,14 +1,17 @@
-# Factorio-Analytics
+# factorio-analytics
 
 A package that gives you in-depth details and statistics about your blueprint's in-game functionality
 
 This library utilizes the factorio executable on your local machine, so a copy of Factorio is also required to use this package. 
 
+Created using Factorio version 1.1.80
+
 ### Recommended Setup
 
-- Linux (Though, Windows *should* work fine as well)
+- Linux (Windows works as well)
 - A separate install of Factorio, downloaded from their website.
   - This can help keep mods and settings separate between your gaming install and your code install
+  - If using Windows, make sure you download the 'zip' version to avoid needing to run an installer
 - A Factorio Blueprint that you want to test / analyze
   - Remember to add Infinity Chests to your blueprint to spawn source items! If your blueprint does not include these to provide items, nothing will be done in-game
 
@@ -20,6 +23,7 @@ I don't have the time for all of these projects, but these are some examples of 
 - Blueprint Ranking / Competition - score blueprints by their actual outputs, highlighting far more data to compare them
 - Blueprint AI Model - if enough data is collected, could an AI learn to generate effective blueprints? This package can help test and train an AI
 - Blueprint Library Electron app - would be cool to have a factorio-assistant on the side, that can more intelligently manage all my blueprints
+- Blueprint Database - A massive database of blueprints where you can search/filter by actual outputs / rates. Could be possible now!
 
 Go crazy! Show us all what you make, and I'd love to add your project to this document.
 
@@ -237,6 +241,14 @@ node /path/to/package/factorio-analytics/dist/scripts/runTrial.js
 ### License
 **GNU GENERAL PUBLIC LICENSE**
 
+### Other
+
 I am open to changes and features that others may wish to add - simply make a pull request and detail why these changes should be made.
 
 This entire package is relatively simple right now, but I expect it will grow in functionality over time.
+
+If you need to get in touch with me, the best way (besides email) is to reach out on Github or Discord.
+
+If you have a feature request or issue, feel free to create one on the Github page!
+
+If you have changes you'd like to make, please make a pull request and outline what the changes add
