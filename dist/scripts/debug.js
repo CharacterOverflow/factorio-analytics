@@ -42,7 +42,7 @@ const fs = __importStar(require("fs"));
 const Factory_1 = require("../src/Factory");
 const path_1 = __importDefault(require("path"));
 dotenv.config();
-const bpFile = path_1.default.join(process.cwd(), 'factory/examples/smallbasev2.txt');
+const bpFile = path_1.default.join(process.cwd(), 'factory/examples/1200spm_base.bp');
 Factory_1.Factory.initialize({
     installDir: process.env.FACTORIO_INSTALL,
     dataDir: process.env.FACTORIO_DATA,

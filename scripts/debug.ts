@@ -18,7 +18,7 @@ import {Dataset} from "../src/Dataset";
 
 dotenv.config();
 
-const bpFile = path.join(process.cwd(), 'factory/examples/smallbasev2.txt');
+const bpFile = path.join(process.cwd(), 'factory/examples/1200spm_base.bp');
 
 Factory.initialize({
     installDir: process.env.FACTORIO_INSTALL,
