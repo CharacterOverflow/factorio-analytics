@@ -1,6 +1,6 @@
 {
   "name": "factorio-analytics",
-  "version": "1.1",
+  "version": "1.1.0",
   "description": "A package for benchmarking Factorio blueprints, providing detailed results of outputs",
   "repository": {
     "type": "github",
