@@ -103,6 +103,14 @@ export interface IDatasetTemplate {
     avg: number;
     std: number;
 }
+export interface IDatasetFilter {
+    category: 'item' | 'electric' | 'circuit' | 'pollution';
+    label?: string;
+    spec?: 'cons' | 'prod' | 'all';
+    network?: number;
+    scale?: number;
+    radix?: number;
+}
 export declare class Dataset {
     private cachedIntervals;
     get itemInterval(): number;
@@ -137,15 +145,11 @@ export declare class Dataset {
     private static _parseSystemTickData;
     private static _parseGameCircuitData;
 }
-export declare class DatasetFragment implements IDatasetTemplate {
+export declare class DatasetSubset implements IDatasetTemplate {
     readonly dataset: Dataset;
-    get desc(): string;
-    label: string;
-    category: 'item' | 'electric' | 'circuit' | 'pollution';
-    specifier: string;
-    network?: number;
-    scale?: number;
-    radix?: number;
+    constructor(dataset: Dataset);
+    label?: string;
+    specifier?: string;
     values: IGameDataItem[];
     interval: number;
     total: number;
@@ -153,13 +157,23 @@ export declare class DatasetFragment implements IDatasetTemplate {
     max: number;
     avg: number;
     std: number;
-    constructor(dataset: Dataset, filter: IDatasetFilter);
     load(): void;
     recalculate(): void;
-    apply(func: (arr: IGameDataItem[]) => IGameDataItem[]): void;
+    apply(func: (arr: IGameDataItem[]) => IGameDataItem[]): this;
+}
+export declare class DatasetFragment extends DatasetSubset {
+    get desc(): string;
+    label: string;
+    category: 'item' | 'electric' | 'circuit' | 'pollution';
+    specifier: string;
+    network?: number;
+    scale?: number;
+    radix?: number;
+    constructor(dataset: Dataset, filter: IDatasetFilter);
+    load(): void;
     per(filter: IDatasetFilter | DatasetFragment): DatasetRatio;
 }
-export declare class DatasetRatio implements IDatasetTemplate {
+export declare class DatasetRatio extends DatasetSubset {
     get desc(): string;
     get descData(): string;
     top: DatasetFragment;
@@ -169,22 +183,6 @@ export declare class DatasetRatio implements IDatasetTemplate {
     specifier: string;
     scale?: number;
     radix?: number;
-    values: IGameDataItem[];
-    interval: number;
-    total: number;
-    min: number;
-    max: number;
-    avg: number;
-    std: number;
     constructor(top: DatasetFragment, bottom: DatasetFragment, dataSettings?: IDatasetFilter);
     load(): void;
-    recalculate(): void;
-}
-export interface IDatasetFilter {
-    category: 'item' | 'electric' | 'circuit' | 'pollution';
-    label?: string;
-    spec?: 'cons' | 'prod' | 'all';
-    network?: number;
-    scale?: number;
-    radix?: number;
 }

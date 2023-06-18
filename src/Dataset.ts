@@ -175,6 +175,20 @@ export interface IDatasetTemplate {
     std: number;
 }
 
+
+export interface IDatasetFilter {
+    category: 'item' | 'electric' | 'circuit' | 'pollution';
+    label?: string;
+    spec?: 'cons' | 'prod' | 'all';
+    network?: number;
+
+    // The number to divide every value in this dataset by
+    scale?: number;
+
+    // Rounding to this number of decimal places
+    radix?: number;
+}
+
 export class Dataset {
 
     // variable saving the 'interval' value used to create this dataset. This is ESSENTIAL to processing the data correctly
@@ -724,7 +738,7 @@ export class Dataset {
                             networkId: Number.parseInt(lineKeys[j]),
                             label: c,
                             tick: (i + 1) * tickInterval,
-                            cons: kData.cons[c],
+                            cons: kData.cons[c] * 2,
                             prod: 0,
                         } as IGameElectricTick;
                     }
@@ -746,7 +760,7 @@ export class Dataset {
                             label: p,
                             tick: (i + 1) * tickInterval,
                             cons: 0,
-                            prod: kData.prod[p]
+                            prod: kData.prod[p] * 2
                         } as IGameElectricTick;
                     }
                 }
@@ -934,51 +948,17 @@ export class Dataset {
 // Fragment makes up a single smaller subset of data from a Dataset
 // Ratio makes up a comparable ratio of 2 fragments
 // all share the same functionality
-
-
-/*
-* GOALS
-* 1. Dataset rework - the 'get' and 'per' functionality will now operate on entire datasets, point by point.
-* 2. Will always use the 'dir' and 'count' resulting datatype, so it can be used for signal and other information as well
-*     - dir would be prod or  cons, OR if its a signal, would be the signal ID
-* */
-
-// This class represents a single piece of a dataset that was retrieved - a summary value of everything in the dataset with a filter
-// From there, it can then be chained with another dataset request to produce a final 'DatasetRatio'
-// Can be used on item data, electric data, and pollution data.
-export class DatasetFragment implements IDatasetTemplate {
+export class DatasetSubset implements IDatasetTemplate {
 
     readonly dataset: Dataset;
 
-    get desc() {
-        if (this.category === 'item') {
-            return `${this.label} items ${this.specifier == 'prod' ? 'produced' : 'consumed'}`
-        } else if (this.category === 'electric') {
-            return `${this.label} ${this.specifier == 'prod' ? 'power produced' : 'consumed power'}`
-        } else if (this.category === 'pollution') {
-            return `pollution ${this.specifier == 'prod' ? 'produced' : 'consumed'}`
-        } else if (this.category === 'circuit') {
-            return `circuit ${this.label} value on ${this.specifier}`
-        }
+    constructor(dataset: Dataset) {
+        this.dataset = dataset;
     }
 
-    // the 'label' used to filter results down from the dataset. Will differ depending on the category
-    label: string;
-
-    // the 'category' of data that this represents. Changes which source we read from in the dataset.
-    category: 'item' | 'electric' | 'circuit' | 'pollution';
-
-    // Direction is a specifier, changing depending on category used. If 'item' or 'electric', will be cons, prod, or 'all'. If 'circuit', will be the signal ID. If 'pollution', is not used
-    specifier: string
-
-    // Network filter - only used for electric and circuit data. otherwise undefined
-    network?: number;
-
-    // the scale value - divide all data in this dataset by this
-    scale?: number;
-
-    // the radix value - will round all data to this many decimal points
-    radix?: number;
+    // these should be set in subsequent functions to represent the data name/category
+    label?: string;
+    specifier?: string;
 
     // the array of values that this dataset fragment represents - this is the 'raw' data that we are summarizing. Each index of values lines  up to the same index in ticks
     values: IGameDataItem[];
@@ -999,10 +979,95 @@ export class DatasetFragment implements IDatasetTemplate {
     avg: number;
     std: number;
 
+    // implement here any functionality for 'loading' this fragment or partial from the Dataset. This is called when the dataset is loaded
+    load(){
+
+    }
+
+    // Called to regnerate metadata about the overall 'values' array that is loaded during the 'load' functionality
+    recalculate() {
+// calcs summary values from values array
+        if (this.values && this.values.length > 0) {
+            this.total = _.sumBy(this.values, 'value');
+            this.min = _.minBy(this.values, 'value')?.value
+            this.max = _.maxBy(this.values, 'value')?.value;
+            this.avg = _.meanBy(this.values, 'value');
+            const avg = this.avg;
+
+            // really don't want to include the mathjs library if I don't have to
+            this.std = Math.sqrt(this.values.reduce(function (sq, n) {
+                return sq + Math.pow(n.value - avg, 2);
+            }, 0) / (this.values.length - 1));
+        } else  {
+            this.total = 0;
+            this.min = 0;
+            this.max = 0;
+            this.avg = 0;
+            this.std = 0;
+        }
+    }
+
+
+    /*
+    * Applies a given filter function to this dataset fragment, setting the 'values' array based on results.
+    * Can be used to customize the data used in this format after retrieval - for example, to SUM all items produced per tick.
+    * */
+    apply(func: (arr: IGameDataItem[]) => IGameDataItem[]) {
+        this.values = func(this.values);
+        this.recalculate();
+        return this;
+    }
+
+}
+
+/*
+* GOALS
+* 1. Dataset rework - the 'get' and 'per' functionality will now operate on entire datasets, point by point.
+* 2. Will always use the 'dir' and 'count' resulting datatype, so it can be used for signal and other information as well
+*     - dir would be prod or  cons, OR if its a signal, would be the signal ID
+* */
+
+// This class represents a single piece of a dataset that was retrieved - a summary value of everything in the dataset with a filter
+// From there, it can then be chained with another dataset request to produce a final 'DatasetRatio'
+// Can be used on item data, electric data, and pollution data.
+export class DatasetFragment extends DatasetSubset {
+
+
+    get desc() {
+        if (this.category === 'item') {
+            return `${this.label} items ${this.specifier == 'prod' ? 'produced' : 'consumed'}`
+        } else if (this.category === 'electric') {
+            return `${this.label} ${this.specifier == 'prod' ? 'power produced' : 'consumed power'}`
+        } else if (this.category === 'pollution') {
+            return `pollution ${this.specifier == 'prod' ? 'produced' : 'consumed'}`
+        } else if (this.category === 'circuit') {
+            return `circuit ${this.label} value on ${this.specifier}`
+        }
+    }
+
+
+    // the 'label' used to filter results down from the dataset. Will differ depending on the category
+    label: string;
+
+    // the 'category' of data that this represents. Changes which source we read from in the dataset.
+    category: 'item' | 'electric' | 'circuit' | 'pollution';
+
+    // Direction is a specifier, changing depending on category used. If 'item' or 'electric', will be cons, prod, or 'all'. If 'circuit', will be the signal ID. If 'pollution', is not used
+    specifier: string
+
+    // Network filter - only used for electric and circuit data. otherwise undefined
+    network?: number;
+
+    // the scale value - divide all data in this dataset by this
+    scale?: number;
+
+    // the radix value - will round all data to this many decimal points
+    radix?: number;
+
     // category is what data we are selecting from - assumed to be 'items' or 'electricity' or 'pollution'
     // filter should also be 'pollution' if grabbing that
     constructor(dataset: Dataset, filter: IDatasetFilter) {
-        this.dataset = dataset;
+        super(dataset);
         this.label = filter.label;
         this.category = filter.category;
         this.specifier = filter.spec;
@@ -1044,38 +1109,6 @@ export class DatasetFragment implements IDatasetTemplate {
             console.log(this);
     }
 
-    recalculate() {
-        // calcs summary values from values array
-        if (this.values && this.values.length > 0) {
-            this.total = _.sumBy(this.values, 'value');
-            this.min = _.minBy(this.values, 'value')?.value
-            this.max = _.maxBy(this.values, 'value')?.value;
-            this.avg = _.meanBy(this.values, 'value');
-            const avg = this.avg;
-
-            // really don't want to include the mathjs library if I don't have to
-            this.std = Math.sqrt(this.values.reduce(function (sq, n) {
-                return sq + Math.pow(n.value - avg, 2);
-            }, 0) / (this.values.length - 1));
-        } else  {
-            this.total = 0;
-            this.min = 0;
-            this.max = 0;
-            this.avg = 0;
-            this.std = 0;
-        }
-
-    }
-
-    /*
-    * Applies a given filter function to this dataset fragment, setting the 'values' array based on results.
-    * Can be used to customize the data used in this format after retrieval - for example, to SUM all items produced per tick.
-    * */
-    apply(func: (arr: IGameDataItem[]) => IGameDataItem[]) {
-        this.values = func(this.values);
-        this.recalculate();
-    }
-
     /*
     * This function is used to 'chain' 2  dataset fragments together. This will take the current fragment as the 'top' in the ratio, and the given fragment as the 'bottom'.
     * So, this can then produce a dataset such that 'iron-plates produced' per 'pollution produced' can be calculated.
@@ -1096,7 +1129,7 @@ export class DatasetFragment implements IDatasetTemplate {
 }
 
 // The final 'ratio' of some dataset, of <key> per <key>.
-export class DatasetRatio implements IDatasetTemplate {
+export class DatasetRatio extends DatasetSubset {
 
     get desc() {
         return this.top.desc + ' per ' + this.bottom.desc;
@@ -1125,25 +1158,6 @@ export class DatasetRatio implements IDatasetTemplate {
     // the radix value - will round all data to this many decimal points
     radix?: number;
 
-    // the array of values that this dataset fragment represents - this is the 'raw' data that we are summarizing. Each index of values lines  up to the same index in ticks
-    values: IGameDataItem[];
-
-    // the interval that this dataset was recorded at. WE CANNOT COMPARE DATA FROM DIFFERENT INTERVALS!!
-    // Math is done 1-1 on each array, by tick. So if they don't have a matching tick in the other dataset, it will be skipped
-    // this is just because of the basic nature of this, improvements can be made in the future
-    interval: number;
-
-    // total sum of the Values array
-    total: number;
-
-    // min/max values of the Values array
-    min: number;
-    max: number;
-
-    // average and stddev values, plus median
-    avg: number;
-    std: number;
-
 
     // Will take in  2 datasets, and be able to return various information about its ratio between the two
     constructor(top: DatasetFragment, bottom: DatasetFragment, dataSettings?: IDatasetFilter) {
@@ -1152,6 +1166,8 @@ export class DatasetRatio implements IDatasetTemplate {
 
         if (top.interval != bottom.interval)
             throw new Error('Both top and bottom must have the same interval to create a DatasetRatio. Top: ' + top.interval + ' Bottom: ' + bottom.interval);
+
+        super(top.dataset);
 
         this.label = dataSettings?.label ? dataSettings?.label : `${top.label} / ${bottom.label}`;
         this.category = dataSettings?.category ? dataSettings?.category : `${top.category} / ${bottom.category}`;
@@ -1216,38 +1232,5 @@ export class DatasetRatio implements IDatasetTemplate {
         this.recalculate();
     }
 
-    recalculate() {
-        // calcs summary values from values array
-        if (this.values && this.values.length > 0) {
-            this.total = _.sumBy(this.values, 'value');
-            this.min = _.minBy(this.values, 'value').value
-            this.max = _.maxBy(this.values, 'value').value;
-            this.avg = _.meanBy(this.values, 'value');
-            const avg = this.avg;
-
-            // really don't want to include the mathjs library if I don't have to
-            this.std = Math.sqrt(this.values.reduce(function (sq, n) {
-                return sq + Math.pow(n.value - avg, 2);
-            }, 0) / (this.values.length - 1));
-        } else  {
-            this.total = 0;
-            this.min = 0;
-            this.max = 0;
-            this.avg = 0;
-            this.std = 0;
-        }
-    }
 }
 
-export interface IDatasetFilter {
-    category: 'item' | 'electric' | 'circuit' | 'pollution';
-    label?: string;
-    spec?: 'cons' | 'prod' | 'all';
-    network?: number;
-
-    // The number to divide every value in this dataset by
-    scale?: number;
-
-    // Rounding to this number of decimal places
-    radix?: number;
-}

@@ -59,11 +59,11 @@ Factory_1.Factory.initialize({
         // how many ticks between item data polls (Items/fluids produced and consumed across the factory)
         itemInterval: 300,
         // how many ticks between elec data polls (The power usage and production of the factory, per network)
-        elecInterval: 30,
+        elecInterval: 300,
         // how many ticks between circ data polls (Each circuit network, and the signals on it)
         circInterval: 300,
         // how many ticks between Pollution data polls (The pollution of the factory, total)
-        pollInterval: 900,
+        pollInterval: 300,
         // how many ticks of performance info should be grouped together (Perf info is recorded every tick by default)
         sysInterval: 300,
         // how many logistic bots to start roboports with. If left as is, none will be placed
@@ -86,10 +86,29 @@ Factory_1.Factory.initialize({
     let ratioInserterPowerVsAll = data
         .get({ category: 'electric', label: 'inserter', spec: 'cons', scale: 1000, radix: 2 })
         .per({ category: 'electric', label: 'all', spec: 'cons', scale: 1000, radix: 2 });
-    let copperProduced = data.get({ label: 'copper-plate', spec: 'prod', category: 'item' });
+    // Assembnler-2 power consumed vs ALL consumed
+    let ratioAssembler2PowerVsAll = data
+        .get({ category: 'electric', label: 'assembling-machine-2', spec: 'cons', scale: 1000, radix: 2 })
+        .per({ category: 'electric', label: 'all', spec: 'cons', scale: 1000, radix: 2 });
+    // Assembnler-2 power consumed vs ALL consumed
+    let ratioRefineryPowerVsAll = data
+        .get({ category: 'electric', label: 'oil-refinery', spec: 'cons', scale: 1000, radix: 2 })
+        .per({ category: 'electric', label: 'all', spec: 'cons', scale: 1000, radix: 2 });
+    // ratio of iron-plates produced per 10 pollution generated
+    let ratioIronToPollution = data
+        .get({ category: 'item', label: 'iron-plate', spec: 'prod', radix: 1 })
+        .per({ category: 'pollution', label: 'all', scale: 10, radix: 2 });
+    // Ratio of coal consumed per 100 pollution generated
+    let ratioCoalToPollution = data
+        .get({ category: 'item', label: 'coal', spec: 'cons', radix: 1 })
+        .per({ category: 'pollution', label: 'all', scale: 100, radix: 2 });
+    // Ratio of iron plates produced per 1000w consumed
+    let ratioIronToElectric = data
+        .get({ category: 'item', label: 'iron-plate', spec: 'prod', radix: 1 })
+        .per({ category: 'electric', label: 'all', scale: 1000000, radix: 2 });
+    // I DONT KNOW WHY, BUT I HAVE TO MULTIPLY ALL ELECTRIC VALUES BY 2 TO GET THEIR ACTUAL ELECTRIC VALUE!! WTF
     console.log(ratioIronToCoal.descData);
     console.log(ratioInserterPowerVsAll.descData);
-    console.log(`${copperProduced.min} - ${copperProduced.max} (${copperProduced.avg}) += ${copperProduced.std} ` + copperProduced.desc);
     console.log('done!');
 }).then(() => {
     console.log('Done');

@@ -251,11 +251,13 @@ export class Factory {
         if (skipProcessing === true || t.keepRaw === true) {
             d.skipProcess(path.join(Factory.dataDir, 'script-output'));
             Factory.runningTrialStage = 'done';
+            Factory.runningTrial = null;
             return t;
         } else {
             d.process(path.join(Factory.dataDir, 'script-output'));
             await Factory.deleteRawFiles(t);
             Factory.runningTrialStage = 'done';
+            Factory.runningTrial = null;
             return t;
         }
     }

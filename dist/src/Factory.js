@@ -219,12 +219,14 @@ class Factory {
             if (skipProcessing === true || t.keepRaw === true) {
                 d.skipProcess(path_1.default.join(Factory.dataDir, 'script-output'));
                 Factory.runningTrialStage = 'done';
+                Factory.runningTrial = null;
                 return t;
             }
             else {
                 d.process(path_1.default.join(Factory.dataDir, 'script-output'));
                 yield Factory.deleteRawFiles(t);
                 Factory.runningTrialStage = 'done';
+                Factory.runningTrial = null;
                 return t;
             }
         });

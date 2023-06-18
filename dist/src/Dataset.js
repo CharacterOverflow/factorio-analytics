@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DatasetRatio = exports.DatasetFragment = exports.Dataset = void 0;
+exports.DatasetRatio = exports.DatasetFragment = exports.DatasetSubset = exports.Dataset = void 0;
 /*
 * this class  will be in charg of managing an entire dataset about a given Trial.
 *
@@ -471,7 +471,7 @@ class Dataset {
                             networkId: Number.parseInt(lineKeys[j]),
                             label: c,
                             tick: (i + 1) * tickInterval,
-                            cons: kData.cons[c],
+                            cons: kData.cons[c] * 2,
                             prod: 0,
                         };
                     }
@@ -491,7 +491,7 @@ class Dataset {
                             label: p,
                             tick: (i + 1) * tickInterval,
                             cons: 0,
-                            prod: kData.prod[p]
+                            prod: kData.prod[p] * 2
                         };
                     }
                 }
@@ -670,6 +670,47 @@ exports.Dataset = Dataset;
 // Fragment makes up a single smaller subset of data from a Dataset
 // Ratio makes up a comparable ratio of 2 fragments
 // all share the same functionality
+class DatasetSubset {
+    constructor(dataset) {
+        this.dataset = dataset;
+    }
+    // implement here any functionality for 'loading' this fragment or partial from the Dataset. This is called when the dataset is loaded
+    load() {
+    }
+    // Called to regnerate metadata about the overall 'values' array that is loaded during the 'load' functionality
+    recalculate() {
+        var _a, _b;
+        // calcs summary values from values array
+        if (this.values && this.values.length > 0) {
+            this.total = lodash_1.default.sumBy(this.values, 'value');
+            this.min = (_a = lodash_1.default.minBy(this.values, 'value')) === null || _a === void 0 ? void 0 : _a.value;
+            this.max = (_b = lodash_1.default.maxBy(this.values, 'value')) === null || _b === void 0 ? void 0 : _b.value;
+            this.avg = lodash_1.default.meanBy(this.values, 'value');
+            const avg = this.avg;
+            // really don't want to include the mathjs library if I don't have to
+            this.std = Math.sqrt(this.values.reduce(function (sq, n) {
+                return sq + Math.pow(n.value - avg, 2);
+            }, 0) / (this.values.length - 1));
+        }
+        else {
+            this.total = 0;
+            this.min = 0;
+            this.max = 0;
+            this.avg = 0;
+            this.std = 0;
+        }
+    }
+    /*
+    * Applies a given filter function to this dataset fragment, setting the 'values' array based on results.
+    * Can be used to customize the data used in this format after retrieval - for example, to SUM all items produced per tick.
+    * */
+    apply(func) {
+        this.values = func(this.values);
+        this.recalculate();
+        return this;
+    }
+}
+exports.DatasetSubset = DatasetSubset;
 /*
 * GOALS
 * 1. Dataset rework - the 'get' and 'per' functionality will now operate on entire datasets, point by point.
@@ -679,7 +720,7 @@ exports.Dataset = Dataset;
 // This class represents a single piece of a dataset that was retrieved - a summary value of everything in the dataset with a filter
 // From there, it can then be chained with another dataset request to produce a final 'DatasetRatio'
 // Can be used on item data, electric data, and pollution data.
-class DatasetFragment {
+class DatasetFragment extends DatasetSubset {
     get desc() {
         if (this.category === 'item') {
             return `${this.label} items ${this.specifier == 'prod' ? 'produced' : 'consumed'}`;
@@ -697,7 +738,7 @@ class DatasetFragment {
     // category is what data we are selecting from - assumed to be 'items' or 'electricity' or 'pollution'
     // filter should also be 'pollution' if grabbing that
     constructor(dataset, filter) {
-        this.dataset = dataset;
+        super(dataset);
         this.label = filter.label;
         this.category = filter.category;
         this.specifier = filter.spec;
@@ -739,36 +780,6 @@ class DatasetFragment {
         else
             console.log(this);
     }
-    recalculate() {
-        var _a, _b;
-        // calcs summary values from values array
-        if (this.values && this.values.length > 0) {
-            this.total = lodash_1.default.sumBy(this.values, 'value');
-            this.min = (_a = lodash_1.default.minBy(this.values, 'value')) === null || _a === void 0 ? void 0 : _a.value;
-            this.max = (_b = lodash_1.default.maxBy(this.values, 'value')) === null || _b === void 0 ? void 0 : _b.value;
-            this.avg = lodash_1.default.meanBy(this.values, 'value');
-            const avg = this.avg;
-            // really don't want to include the mathjs library if I don't have to
-            this.std = Math.sqrt(this.values.reduce(function (sq, n) {
-                return sq + Math.pow(n.value - avg, 2);
-            }, 0) / (this.values.length - 1));
-        }
-        else {
-            this.total = 0;
-            this.min = 0;
-            this.max = 0;
-            this.avg = 0;
-            this.std = 0;
-        }
-    }
-    /*
-    * Applies a given filter function to this dataset fragment, setting the 'values' array based on results.
-    * Can be used to customize the data used in this format after retrieval - for example, to SUM all items produced per tick.
-    * */
-    apply(func) {
-        this.values = func(this.values);
-        this.recalculate();
-    }
     /*
     * This function is used to 'chain' 2  dataset fragments together. This will take the current fragment as the 'top' in the ratio, and the given fragment as the 'bottom'.
     * So, this can then produce a dataset such that 'iron-plates produced' per 'pollution produced' can be calculated.
@@ -788,7 +799,7 @@ class DatasetFragment {
 }
 exports.DatasetFragment = DatasetFragment;
 // The final 'ratio' of some dataset, of <key> per <key>.
-class DatasetRatio {
+class DatasetRatio extends DatasetSubset {
     get desc() {
         return this.top.desc + ' per ' + this.bottom.desc;
     }
@@ -802,6 +813,7 @@ class DatasetRatio {
             throw new Error('Both top and bottom are required to create a DatasetRatio');
         if (top.interval != bottom.interval)
             throw new Error('Both top and bottom must have the same interval to create a DatasetRatio. Top: ' + top.interval + ' Bottom: ' + bottom.interval);
+        super(top.dataset);
         this.label = (dataSettings === null || dataSettings === void 0 ? void 0 : dataSettings.label) ? dataSettings === null || dataSettings === void 0 ? void 0 : dataSettings.label : `${top.label} / ${bottom.label}`;
         this.category = (dataSettings === null || dataSettings === void 0 ? void 0 : dataSettings.category) ? dataSettings === null || dataSettings === void 0 ? void 0 : dataSettings.category : `${top.category} / ${bottom.category}`;
         this.specifier = (dataSettings === null || dataSettings === void 0 ? void 0 : dataSettings.spec) ? dataSettings === null || dataSettings === void 0 ? void 0 : dataSettings.spec : `${top === null || top === void 0 ? void 0 : top.specifier} / ${bottom === null || bottom === void 0 ? void 0 : bottom.specifier}`;
@@ -853,27 +865,6 @@ class DatasetRatio {
             });
         }
         this.recalculate();
-    }
-    recalculate() {
-        // calcs summary values from values array
-        if (this.values && this.values.length > 0) {
-            this.total = lodash_1.default.sumBy(this.values, 'value');
-            this.min = lodash_1.default.minBy(this.values, 'value').value;
-            this.max = lodash_1.default.maxBy(this.values, 'value').value;
-            this.avg = lodash_1.default.meanBy(this.values, 'value');
-            const avg = this.avg;
-            // really don't want to include the mathjs library if I don't have to
-            this.std = Math.sqrt(this.values.reduce(function (sq, n) {
-                return sq + Math.pow(n.value - avg, 2);
-            }, 0) / (this.values.length - 1));
-        }
-        else {
-            this.total = 0;
-            this.min = 0;
-            this.max = 0;
-            this.avg = 0;
-            this.std = 0;
-        }
     }
 }
 exports.DatasetRatio = DatasetRatio;
