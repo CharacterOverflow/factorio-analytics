@@ -40,7 +40,7 @@ export interface IGameCircuitTick {
     signals: IGameCircuitSignal[];
 }
 export interface IGameElectricTick {
-    networkId: number;
+    networkId?: number;
     cons: number;
     prod: number;
     label: string;
@@ -89,8 +89,26 @@ export interface ISystemTick {
     chartUpdate: number;
     scriptUpdate: number;
 }
+export interface IGameDataItem {
+    label: string;
+    spec?: string | number;
+    value: number;
+    tick: number;
+}
+export interface IDatasetTemplate {
+    values: IGameDataItem[];
+    total: number;
+    min: number;
+    max: number;
+    avg: number;
+    std: number;
+}
 export declare class Dataset {
     private cachedIntervals;
+    get itemInterval(): number;
+    get elecInterval(): number;
+    get circInterval(): number;
+    get pollInterval(): number;
     startedAt?: Date;
     endedAt?: Date;
     execStartTime: Date;
@@ -109,27 +127,27 @@ export declare class Dataset {
     skipProcess(dirPath: string): void;
     process(dirPath: string): void;
     get(filter: IDatasetFilter): DatasetFragment;
+    getItemDataset(label?: string, spec?: string, scale?: number, radix?: number): IGameDataItem[];
+    getElectricDataset(label?: string, spec?: string, network?: number, scale?: number, radix?: number): IGameDataItem[];
+    getCircuitDataset(label?: string, network?: number, scale?: number, radix?: number): IGameDataItem[];
+    getPollutionDataset(scale?: number, radix?: number): IGameDataItem[];
     private static _parseGamePollutionData;
     private static _parseGameFlowData;
     private static _parseGameElectricData;
     private static _parseSystemTickData;
     private static _parseGameCircuitData;
 }
-export interface IDatasetSummary {
-    total: number;
-    min: number;
-    max: number;
-    avg: number;
-    std: number;
-}
-export declare class DatasetFragment implements IDatasetSummary {
+export declare class DatasetFragment implements IDatasetTemplate {
     readonly dataset: Dataset;
     get desc(): string;
     label: string;
-    category: string;
-    direction: 'cons' | 'prod';
-    values: number[];
-    ticks: number[];
+    category: 'item' | 'electric' | 'circuit' | 'pollution';
+    specifier: string;
+    network?: number;
+    scale?: number;
+    radix?: number;
+    values: IGameDataItem[];
+    interval: number;
     total: number;
     min: number;
     max: number;
@@ -137,21 +155,36 @@ export declare class DatasetFragment implements IDatasetSummary {
     std: number;
     constructor(dataset: Dataset, filter: IDatasetFilter);
     load(): void;
-    private _recalculate;
+    recalculate(): void;
+    apply(func: (arr: IGameDataItem[]) => IGameDataItem[]): void;
     per(filter: IDatasetFilter | DatasetFragment): DatasetRatio;
 }
-export declare class DatasetRatio {
+export declare class DatasetRatio implements IDatasetTemplate {
     get desc(): string;
     get descData(): string;
     top: DatasetFragment;
     bottom: DatasetFragment;
+    label: string;
+    category: string;
+    specifier: string;
+    scale?: number;
+    radix?: number;
+    values: IGameDataItem[];
+    interval: number;
     total: number;
+    min: number;
+    max: number;
     avg: number;
-    constructor(top: DatasetFragment, bottom: DatasetFragment);
+    std: number;
+    constructor(top: DatasetFragment, bottom: DatasetFragment, dataSettings?: IDatasetFilter);
+    load(): void;
     recalculate(): void;
 }
 export interface IDatasetFilter {
-    category: 'item' | 'electric' | 'pollution';
+    category: 'item' | 'electric' | 'circuit' | 'pollution';
     label?: string;
-    direction?: 'cons' | 'prod';
+    spec?: 'cons' | 'prod' | 'all';
+    network?: number;
+    scale?: number;
+    radix?: number;
 }

@@ -63,18 +63,21 @@ Factory.initialize({
     // Trial was run. lets test using our datasets!
     let data: Dataset = trial.data;
 
+    let d1 = data
+        .get({category: 'electric', label: 'inserter', spec: 'cons', scale: 1000, radix: 2})
+
     // compare to if we do it all-in-one
     let ratioIronToCoal = data
-        .get({category: 'item', label: 'iron-plate', direction: 'prod'})
-        .per({category: 'item', label: 'coal', direction: 'cons'});
+        .get({category: 'item', label: 'iron-plate', spec: 'prod'})
+        .per({category: 'item', label: 'coal', spec: 'cons'});
 
     // inserter power consumed vs ALL consumed
     let ratioInserterPowerVsAll = data
-        .get({category: 'electric', label: 'inserter', direction: 'cons'})
-        .per({category: 'electric', label: 'all', direction: 'cons'});
+        .get({category: 'electric', label: 'inserter', spec: 'cons', scale: 1000, radix: 2})
+        .per({category: 'electric', label: 'all', spec: 'cons', scale: 1000, radix: 2});
 
 
-    let copperProduced = data.get({label: 'copper-plate', direction: 'prod', category: 'item'});
+    let copperProduced = data.get({label: 'copper-plate', spec: 'prod', category: 'item'});
 
     console.log(ratioIronToCoal.descData);
     console.log(ratioInserterPowerVsAll.descData);

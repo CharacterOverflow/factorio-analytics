@@ -91,7 +91,7 @@ export interface IGameCircuitTick {
 }
 
 export interface IGameElectricTick {
-    networkId: number;
+    networkId?: number;
     cons: number;
     prod: number;
     label: string
@@ -145,10 +145,56 @@ export interface ISystemTick {
 }
 
 
+export interface IGameDataItem {
+    // cons or prod. Consumption of item or production of it
+    label: string;          // The item name
+    spec?: string | number;   // The direction of the item.
+    // For signals, this is the signal ID instead.
+    // For electric data, this is the network ID.
+    // If this ever == 'all', it means it includes ALL electric data or ALL circuit data.
+    // ALL for items just means it includes cons+prod
+    // not used for pollution data
+    value: number;          // The value of the item
+    tick: number;           // The tick this data was recorded at. Calculated by tickInterval * rowNumber
+}
+
+export interface IDatasetTemplate {
+
+    // the array of values that this dataset fragment represents - this is the 'raw' data that we are summarizing. Each index of values lines  up to the same index in ticks
+    values: IGameDataItem[];
+
+    // total sum of the Values array
+    total: number;
+
+    // min/max values of the Values array
+    min: number;
+    max: number;
+
+    // average and stddev values
+    avg: number;
+    std: number;
+}
+
 export class Dataset {
 
     // variable saving the 'interval' value used to create this dataset. This is ESSENTIAL to processing the data correctly
     private cachedIntervals: IDatasetIntervals;
+
+    get itemInterval(): number {
+        return this.cachedIntervals.itemInterval;
+    }
+
+    get elecInterval(): number {
+        return this.cachedIntervals.elecInterval;
+    }
+
+    get circInterval(): number {
+        return this.cachedIntervals.circInterval;
+    }
+
+    get pollInterval(): number {
+        return this.cachedIntervals.pollInterval;
+    }
 
     // timestamp of the trial start (and end) time. Used to calculate more values about the trial
     startedAt?: Date;
@@ -294,7 +340,6 @@ export class Dataset {
 
         // At this point, all of our data is loaded and parsed. We can now cleanup and return, then we're done
         delete this.rawSysData;
-        delete this.cachedIntervals;
         this.isProcessed = true;
     }
 
@@ -306,23 +351,251 @@ export class Dataset {
     * -- direction - if consumed or produced. For pollution, 'cons' will just inverse the value.
     * */
     get(filter: IDatasetFilter): DatasetFragment {
-        // both filter and direction are needed
-        // fill in the blanks first - pollution does not need filter or direction.
-        if (filter.category != 'pollution') {
-            // require filter and direction be set - if not, throw error
-            if (!filter.label || !filter.direction)
-                throw new Error(`Both filter and direction are required to retrieve data from a ${filter.category} dataset`);
+        // fragment will retrieve the needed data just after creation, or throw error trying. Everything can be chained off of here
+        return new DatasetFragment(this, filter);
+    }
+
+    /*
+    * Returns the item dataset in the IGameDataItem format, for easy usage outisde the package
+    * -- label - if provided, will filter the results to only those that match the label (name). If not provided, or if 'all', all items will be returned
+    * -- spec - if provided, will filter the results to only those that match the spec (cons/prod). If not provided, or if 'all', cons+prod will be returned
+    * */
+    getItemDataset(label?: string, spec?: string, scale?: number, radix?: number): IGameDataItem[] {
+        if (!this.itemStats)
+            return [];
+
+        let dArr: IGameFlowTick[] = [];
+        let results: IGameDataItem[] = [];
+        if (label && label != 'all') {
+            // means the label exists, and is some value we should filter by
+            dArr = this.itemStats.filter((i) => {
+                return i.label == label;
+            });
         } else {
-            // if we're looking for pollution, we can ignore filter. If direction is not set, default to 'prod'
-            filter.label = 'pollution';
-            if (!filter.direction)
-                filter.direction = 'prod';
+            dArr = this.itemStats;
         }
 
-        // fragment will retrieve the needed data just after creation, or throw error trying
-        return new DatasetFragment(this, filter);
+        // now, based on spec, make the add to results
+        // factor in 'scale' and 'radix' if provided
+        if (spec && spec != 'all' && (spec == 'cons' || spec == 'prod')) {
+// in this case, we will JUST add 1 record based on the 'spec' value being either cons or prod
+            for (let i of dArr) {
+                let val = i[spec];
+                if (scale)
+                    val = val / scale;
+                if (radix)
+                    val = +val.toFixed(radix);
+                results.push({
+                    tick: i.tick,
+                    label: i.label,
+                    value: val,
+                    spec: spec
+                });
+            }
+        } else {
+            // add both cons+prod
+            for (let i of dArr) {
+                let cVal = i.cons;
+                let pVal = i.prod;
+                if (scale) {
+                    cVal = cVal / scale;
+                    pVal = pVal / scale;
+                }
+                if (radix) {
+                    cVal = +cVal.toFixed(radix);
+                    pVal = +pVal.toFixed(radix);
+                }
+                results.push({
+                    tick: i.tick,
+                    label: i.label,
+                    value: cVal,
+                    spec: 'cons'
+                })
+                results.push({
+                    tick: i.tick,
+                    label: i.label,
+                    value: pVal,
+                    spec: 'prod'
+                })
+            }
+        }
 
-        // any other processing is done via the fragment, likely using 'per' function
+        return results
+    }
+
+    /*
+    * Returns the elec dataset in the IGameDataFormat, for easy usage outside the package
+    * -- label - if provided, will filter the results to only those that match the label (name). If not provided, or if 'all', all items will be returned
+    * -- spec - if provided, will filter the results to only those that match the spec (cons/prod). If not provided, or if 'all', cons+prod will be returned.
+    * -- network - if provided, will filter the results to only those that match the network id. If not provided, all networks will be returned
+    * -- scale - if provided, will scale the results by the provided value (dividing by scale). If not provided, no scaling will be done. Recommended to use this as '1000' for kW, '1000000' for MW, etc
+    * -- radix - if provided, will round the results to the provided radix. If not provided, no rounding will be done. Recommended to use this as '2' for 2 decimal places.
+    * */
+    getElectricDataset(label?: string, spec?: string, network?: number, scale?: number, radix?: number): IGameDataItem[] {
+        if (!this.elecStats)
+            return [];
+
+        let dArr: IGameElectricTick[] = [];
+        let results: IGameDataItem[] = [];
+
+        // filter down by network, if provided
+        if (network) {
+            dArr = this.elecStats.filter((i) => {
+                return i.networkId == network;
+            });
+        } else {
+            dArr = this.elecStats;
+        }
+
+        if (label && label != 'all') {
+            // means the label exists, and is some value we should filter by
+            dArr = dArr.filter((i) => {
+                return i.label == label;
+            });
+        } else {
+            // means that label either DOESNT exist, or is 'all'. So, use entire dataset, 1 record per tick.
+            let gd = _.groupBy(dArr,'tick');
+
+            let k = Object.keys(gd);
+            let nArr = [];
+            for (let i of k) {
+                let v = gd[i];
+                // summarize 'v' into 1 record, add to dArr
+                nArr.push({
+                    tick: i,
+                    label: 'all',
+                    cons: _.sumBy(v,'cons'),
+                    prod: _.sumBy(v,'prod')
+                })
+            }
+            dArr = nArr;
+        }
+
+        // now, based on spec, make the add to results
+        // factor in 'scale' and 'radix' if provided
+        if (spec && spec != 'all' && (spec == 'cons' || spec == 'prod')) {
+// in this case, we will JUST add 1 record based on the 'spec' value being either cons or prod
+            for (let i of dArr) {
+                let val = i[spec];
+                if (scale)
+                    val = val / scale;
+                if (radix)
+                    val = +val.toFixed(radix);
+                results.push({
+                    tick: i.tick,
+                    label: i.label,
+                    value: val,
+                    spec: spec
+                });
+            }
+        } else {
+            // add both cons+prod
+            for (let i of dArr) {
+                let cVal = i.cons;
+                let pVal = i.prod;
+                if (scale) {
+                    cVal = cVal / scale;
+                    pVal = pVal / scale;
+                }
+                if (radix) {
+                    cVal = +cVal.toFixed(radix);
+                    pVal = +pVal.toFixed(radix);
+                }
+                results.push({
+                    tick: i.tick,
+                    label: i.label,
+                    value: cVal,
+                    spec: 'cons'
+                })
+                results.push({
+                    tick: i.tick,
+                    label: i.label,
+                    value: pVal,
+                    spec: 'prod'
+                })
+            }
+        }
+
+        return results;
+    }
+
+    /*
+    * Returns the circuit  dataset in the IGameDataFormat, for easy usage outsid the package
+    * -- label - if provided, will filter the results to only those signals that match the label (name). If not provided, or if 'all', all items will be returned
+    * -- network - if provided, will filter the results to only those signals that match the network id. If not provided, all networks will be returned overlaid on top of each other.
+    * */
+    getCircuitDataset(label?: string, network?: number, scale?: number, radix?: number): IGameDataItem[] {
+        if (!this.circStats)
+            return [];
+
+        let dArr: IGameCircuitTick[] = [];
+        let results: IGameDataItem[] = [];
+        if (label && label != 'all') {
+            // means the label exists, and is some value we should filter by. Remove all entries that don't have a signla with this label
+            dArr = this.circStats.filter((i) => {
+                return i.signals.some((s) => {
+                    return s.signal?.name == label;
+                });
+            })
+        } else {
+            // means that label either DOESNT exist, or is 'all'. So, use entire dataset
+            dArr = this.circStats;
+        }
+
+        // if network is set, filter down to only those that match the network
+        if (network) {
+            dArr = dArr.filter((i) => {
+                return i.circuitId == network;
+            });
+        }
+
+        // now, we need to loop through the dataset and add each signal to the results. A result shuold be added for EACH signal of specified label (if set)
+        for (let i of dArr) {
+            for (let s of i.signals) {
+                if (label && label != 'all' && s.signal?.name != label)
+                    continue;
+
+                let val = s.count;
+                if (scale)
+                    val = val / scale;
+                if (radix)
+                    val = +val.toFixed(radix);
+
+                results.push({
+                    tick: i.tick,
+                    label: network ? s.signal?.name : `${i.circuitId}:${s.signal?.name}`,
+                    value: val,
+                    spec: 'count'
+                })
+            }
+        }
+
+        return results;
+    }
+
+    /*
+    * Returns the pollution dataset in the IGameDataFormat, for easy usage outside the package
+    * No parameters are needed here - the pollution dataset is a single dataset, and is not broken down by network or label. Simple!
+    * */
+    getPollutionDataset(scale?: number, radix?: number): IGameDataItem[] {
+        if (!this.pollStats)
+            return [];
+
+        return this.pollStats.map((i) => {
+
+            let val = i.count;
+            if (scale)
+                val = val / scale;
+            if (radix)
+                val = +val.toFixed(radix);
+
+            return {
+                tick: i.tick,
+                label: 'pollution',
+                value: val,
+                spec: 'count'
+            }
+        })
     }
 
     /*
@@ -657,44 +930,63 @@ export class Dataset {
     }
 }
 
-export interface IDatasetSummary {
+// The base class of many subsets of the Dataset
+// Fragment makes up a single smaller subset of data from a Dataset
+// Ratio makes up a comparable ratio of 2 fragments
+// all share the same functionality
 
-    // total sum of the Values array
-    total: number;
 
-    // min/max values of the Values array
-    min: number;
-    max: number;
-
-    // average and stddev values
-    avg: number;
-    std: number;
-}
+/*
+* GOALS
+* 1. Dataset rework - the 'get' and 'per' functionality will now operate on entire datasets, point by point.
+* 2. Will always use the 'dir' and 'count' resulting datatype, so it can be used for signal and other information as well
+*     - dir would be prod or  cons, OR if its a signal, would be the signal ID
+* */
 
 // This class represents a single piece of a dataset that was retrieved - a summary value of everything in the dataset with a filter
 // From there, it can then be chained with another dataset request to produce a final 'DatasetRatio'
 // Can be used on item data, electric data, and pollution data.
-export class DatasetFragment implements IDatasetSummary {
+export class DatasetFragment implements IDatasetTemplate {
 
     readonly dataset: Dataset;
 
     get desc() {
         if (this.category === 'item') {
-            return `${this.label} items ${this.direction == 'prod' ? 'produced' : 'consumed'}`
+            return `${this.label} items ${this.specifier == 'prod' ? 'produced' : 'consumed'}`
         } else if (this.category === 'electric') {
-            return `${this.label} ${this.direction == 'prod' ? 'power produced' : 'consumed power'}`
+            return `${this.label} ${this.specifier == 'prod' ? 'power produced' : 'consumed power'}`
         } else if (this.category === 'pollution') {
-            return `pollution ${this.direction == 'prod' ? 'produced' : 'consumed'}`
+            return `pollution ${this.specifier == 'prod' ? 'produced' : 'consumed'}`
+        } else if (this.category === 'circuit') {
+            return `circuit ${this.label} value on ${this.specifier}`
         }
     }
 
+    // the 'label' used to filter results down from the dataset. Will differ depending on the category
     label: string;
-    category: string;
-    direction: 'cons' | 'prod';
+
+    // the 'category' of data that this represents. Changes which source we read from in the dataset.
+    category: 'item' | 'electric' | 'circuit' | 'pollution';
+
+    // Direction is a specifier, changing depending on category used. If 'item' or 'electric', will be cons, prod, or 'all'. If 'circuit', will be the signal ID. If 'pollution', is not used
+    specifier: string
+
+    // Network filter - only used for electric and circuit data. otherwise undefined
+    network?: number;
+
+    // the scale value - divide all data in this dataset by this
+    scale?: number;
+
+    // the radix value - will round all data to this many decimal points
+    radix?: number;
 
     // the array of values that this dataset fragment represents - this is the 'raw' data that we are summarizing. Each index of values lines  up to the same index in ticks
-    values: number[];
-    ticks: number[];
+    values: IGameDataItem[];
+
+    // the interval that this dataset was recorded at. WE CANNOT COMPARE DATA FROM DIFFERENT INTERVALS!!
+    // Math is done 1-1 on each array, by tick. So if they don't have a matching tick in the other dataset, it will be skipped
+    // this is just because of the basic nature of this, improvements can be made in the future
+    interval: number;
 
     // total sum of the Values array
     total: number;
@@ -713,120 +1005,81 @@ export class DatasetFragment implements IDatasetSummary {
         this.dataset = dataset;
         this.label = filter.label;
         this.category = filter.category;
-        this.direction = filter.direction;
+        this.specifier = filter.spec;
+        this.network = filter.network;
+        this.scale = filter.scale;
+        this.radix = filter.radix;
+        switch (this.category) {
+            case 'item':
+                this.interval = dataset.itemInterval;
+                break;
+            case 'electric':
+                this.interval = dataset.elecInterval;
+                break;
+            case 'circuit':
+                this.interval = dataset.circInterval;
+                break;
+            case 'pollution':
+                this.interval = dataset.pollInterval;
+                break;
+        }
         this.load();
     }
 
     load() {
         // grabs the specified data from the dataset, then calculates the summary values. Depending on 'filter', different datasets are used
         if (this.category == 'item') {
-            const dir = this.direction;
-            const label = this.label;
-
-            if (label === 'all') {
-                this.values = this.dataset.itemStats.map(function (i) {
-                    return i[dir];
-                })
-                this.ticks = this.dataset.itemStats.map(function (i) {
-                    return i.tick;
-                });
-            } else {
-                let v = this.dataset.itemStats.filter((i) => {
-                    return i.label == label;
-                })
-
-                this.values = v.map(function (i) {
-                    return i[dir];
-                })
-                this.ticks = v.map(function (i) {
-                    return i.tick;
-                });
-            }
-
+            this.values = this.dataset.getItemDataset(this.label, this.specifier, this.scale, this.radix);
         } else if (this.category == 'electric') {
-            const dir = this.direction;
-
-            // if the filter has : in it, the number after is the network ID. Otherwise, assume all networks
-            if (this.label.indexOf(':') != -1) {
-                const split = this.label.split(':');
-                const networkId = Number.parseInt(split[1]);
-                let v = this.dataset.elecStats.filter((i) => {
-                    return i.label == split[0] && i.networkId == networkId;
-                })
-                this.values = v.map(function (i) {
-                    return i[dir];
-                })
-                this.ticks = v.map(function (i) {
-                    return i.tick;
-                })
-            } else if (this.label?.toLowerCase() == 'all') {
-                // grab all electric, regardless of label. SUM per tick
-                const tg = _.groupBy(this.dataset.elecStats, 'tick');
-                const tot = Object.keys(tg).map((k) => {
-                    return {
-                        tick: Number.parseInt(k),
-                        cons: _.sumBy(tg[k], 'cons'),
-                        prod: _.sumBy(tg[k], 'prod'),
-                    }
-                })
-
-                this.values = tot.map(function (i) {
-                    return i[dir];
-                });
-                this.ticks = tot.map(function (i) {
-                    return i.tick;
-                })
-            } else {
-
-                const tg = _.groupBy(this.dataset.elecStats.filter((i) => {
-                    return i.label == this.label
-                }), 'tick');
-                const tot = Object.keys(tg).map((k) => {
-                    return {
-                        tick: Number.parseInt(k),
-                        cons: _.sumBy(tg[k], 'cons'),
-                        prod: _.sumBy(tg[k], 'prod'),
-                    }
-                })
-
-                this.values = tot.map(function (i) {
-                    return i[dir];
-                })
-                this.ticks = tot.map(function (i) {
-                    return i.tick;
-                })
-            }
-
+            this.values = this.dataset.getElectricDataset(this.label, this.specifier, this.network, this.scale, this.radix);
+        } else if (this.category == 'circuit') {
+            this.values = this.dataset.getCircuitDataset(this.label, this.network, this.scale, this.radix);
         } else if (this.category == 'pollution') {
-            // filter doesnt matter here, and cons/prod is just used to inverse the value if needed
-            const dir = this.direction;
-
-            this.values = this.dataset.pollStats.map((p) => {
-                return p.count * (dir == 'cons' ? -1 : 1)
-            });
-            this.ticks = this.dataset.pollStats.map((p) => {
-                return p.tick;
-            });
+            this.values = this.dataset.getPollutionDataset(this.scale, this.radix);
         }
 
-        this._recalculate();
-
+        if (this.values)
+            this.recalculate();
+        else
+            console.log(this);
     }
 
-    private _recalculate() {
+    recalculate() {
         // calcs summary values from values array
-        this.total = _.sum(this.values);
-        this.min = _.min(this.values);
-        this.max = _.max(this.values);
-        this.avg = _.mean(this.values);
-        const avg = this.avg;
+        if (this.values && this.values.length > 0) {
+            this.total = _.sumBy(this.values, 'value');
+            this.min = _.minBy(this.values, 'value')?.value
+            this.max = _.maxBy(this.values, 'value')?.value;
+            this.avg = _.meanBy(this.values, 'value');
+            const avg = this.avg;
 
-        // really don't want to include the mathjs library if I don't have to
-        this.std = Math.sqrt(this.values.reduce(function (sq, n) {
-            return sq + Math.pow(n - avg, 2);
-        }, 0) / (this.values.length - 1));
+            // really don't want to include the mathjs library if I don't have to
+            this.std = Math.sqrt(this.values.reduce(function (sq, n) {
+                return sq + Math.pow(n.value - avg, 2);
+            }, 0) / (this.values.length - 1));
+        } else  {
+            this.total = 0;
+            this.min = 0;
+            this.max = 0;
+            this.avg = 0;
+            this.std = 0;
+        }
+
     }
 
+    /*
+    * Applies a given filter function to this dataset fragment, setting the 'values' array based on results.
+    * Can be used to customize the data used in this format after retrieval - for example, to SUM all items produced per tick.
+    * */
+    apply(func: (arr: IGameDataItem[]) => IGameDataItem[]) {
+        this.values = func(this.values);
+        this.recalculate();
+    }
+
+    /*
+    * This function is used to 'chain' 2  dataset fragments together. This will take the current fragment as the 'top' in the ratio, and the given fragment as the 'bottom'.
+    * So, this can then produce a dataset such that 'iron-plates produced' per 'pollution produced' can be calculated.
+    * */
     per(filter: IDatasetFilter | DatasetFragment): DatasetRatio {
 
         let bottomFragment: DatasetFragment;
@@ -843,7 +1096,7 @@ export class DatasetFragment implements IDatasetSummary {
 }
 
 // The final 'ratio' of some dataset, of <key> per <key>.
-export class DatasetRatio {
+export class DatasetRatio implements IDatasetTemplate {
 
     get desc() {
         return this.top.desc + ' per ' + this.bottom.desc;
@@ -857,27 +1110,66 @@ export class DatasetRatio {
     top: DatasetFragment;
     bottom: DatasetFragment;
 
-    // The TOTAL ratio of top to bottom. Sum of all items -
-    // not accurate if comparing differing tickrate datasets (like items produced per electric, when items are recorded at 300 ticks and electric at 60)
-    // To be clear - ONLY compare datasets with the same tickrate if using total. Otherwise, use avg
+    // the 'label' used to filter results down from the dataset. Will differ depending on the category
+    label: string;
+
+    // the 'category' of data that this represents. Changes which source we read from in the dataset.
+    category: string;
+
+    // Direction is a specifier, changing depending on category used. If 'item' or 'electric', will be cons, prod, or 'all'. If 'circuit', will be the signal ID. If 'pollution', is not used
+    specifier: string
+
+    // the scale value - divide all data in this dataset by this
+    scale?: number;
+
+    // the radix value - will round all data to this many decimal points
+    radix?: number;
+
+    // the array of values that this dataset fragment represents - this is the 'raw' data that we are summarizing. Each index of values lines  up to the same index in ticks
+    values: IGameDataItem[];
+
+    // the interval that this dataset was recorded at. WE CANNOT COMPARE DATA FROM DIFFERENT INTERVALS!!
+    // Math is done 1-1 on each array, by tick. So if they don't have a matching tick in the other dataset, it will be skipped
+    // this is just because of the basic nature of this, improvements can be made in the future
+    interval: number;
+
+    // total sum of the Values array
     total: number;
 
-    // the AVERAGE ratio of top to bottom. Average of all - does not matter on tickrate. Can compare data recorded at 120 ticks to 60 ticks, as its the average of all time.
+    // min/max values of the Values array
+    min: number;
+    max: number;
+
+    // average and stddev values, plus median
     avg: number;
+    std: number;
 
 
     // Will take in  2 datasets, and be able to return various information about its ratio between the two
-    constructor(top: DatasetFragment, bottom: DatasetFragment) {
+    constructor(top: DatasetFragment, bottom: DatasetFragment, dataSettings?: IDatasetFilter) {
         if (!top || !bottom)
             throw new Error('Both top and bottom are required to create a DatasetRatio');
 
+        if (top.interval != bottom.interval)
+            throw new Error('Both top and bottom must have the same interval to create a DatasetRatio. Top: ' + top.interval + ' Bottom: ' + bottom.interval);
+
+        this.label = dataSettings?.label ? dataSettings?.label : `${top.label} / ${bottom.label}`;
+        this.category = dataSettings?.category ? dataSettings?.category : `${top.category} / ${bottom.category}`;
+        this.specifier = dataSettings?.spec ? dataSettings?.spec : `${top?.specifier} / ${bottom?.specifier}`;
+
+        if (dataSettings) {
+            this.scale = dataSettings.scale;
+            this.radix = dataSettings.radix;
+        }
+
+        this.interval = top.interval;
         this.top = top;
         this.bottom = bottom;
-        this.recalculate();
+        this.load();
     }
 
     // calculate the needed ratio data again.
-    recalculate() {
+    load() {
         // Verify if they have been processed yet - else, call load as needed
         if (!this.top.values)
             this.top.load();
@@ -886,15 +1178,76 @@ export class DatasetRatio {
         if (!this.bottom.values)
             this.bottom.load();
 
-        // Now, we can go  calculate our ratio for each summary field.
-        // NOTE - this is the ratio of 'top' to 'bottom'
-        this.total = this.top.total / this.bottom.total;
-        this.avg = this.top.avg / this.bottom.avg;
+        this.values = [];
+
+        // Now - we need to go about actually calculating this ratio for each value in their datasets.
+        /// if the bottom is not defined, it can be assumed to be 0. This isn't possible in math, so we will log 'null' for this value.
+
+        // We first need to get a list of all ticks that exist in both datasets. This will be the 'intersection' of the two datasets.
+        const bottomMap = _.groupBy(this.bottom.values, 'tick')
+
+        for (let top of this.top.values) {
+            // We will compare top and bottom data 1 tick at a time. If we have multiple TOP values for a single tick, that's fine, they will remain
+            // multiple BOTTOM records for a single tick will be summed together, as they are all the same tick.
+            // For eac hvalue in 'top', we will find the matching value in 'bottom' and calculate the ratio.
+            // Get the matching bottom value for this tick
+            const bottom = bottomMap[top.tick];
+            if (!bottom) {
+                // If there is no bottom value for this tick, then we can't calculate a ratio. We will log 'null' for this value.
+                this.values.push({
+                    tick: top.tick,
+                    value: null,
+                    label: top.label,
+                    spec: top.spec,
+                })
+                continue;
+            }
+
+            // We will sum all bottom values together, and then calculate the ratio
+            const bottomSum = _.sumBy(bottom, 'value');
+            this.values.push({
+                tick: top.tick,
+                value: top.value / bottomSum,
+                label: top.label,
+                spec: top.spec,
+            })
+        }
+
+        this.recalculate();
+    }
+
+    recalculate() {
+        // calcs summary values from values array
+        if (this.values && this.values.length > 0) {
+            this.total = _.sumBy(this.values, 'value');
+            this.min = _.minBy(this.values, 'value').value
+            this.max = _.maxBy(this.values, 'value').value;
+            this.avg = _.meanBy(this.values, 'value');
+            const avg = this.avg;
+
+            // really don't want to include the mathjs library if I don't have to
+            this.std = Math.sqrt(this.values.reduce(function (sq, n) {
+                return sq + Math.pow(n.value - avg, 2);
+            }, 0) / (this.values.length - 1));
+        } else  {
+            this.total = 0;
+            this.min = 0;
+            this.max = 0;
+            this.avg = 0;
+            this.std = 0;
+        }
     }
 }
 
 export interface IDatasetFilter {
-    category: 'item' | 'electric' | 'pollution';
+    category: 'item' | 'electric' | 'circuit' | 'pollution';
     label?: string;
-    direction?: 'cons' | 'prod'
+    spec?: 'cons' | 'prod' | 'all';
+    network?: number;
+
+    // The number to divide every value in this dataset by
+    scale?: number;
+
+    // Rounding to this number of decimal places
+    radix?: number;
 }

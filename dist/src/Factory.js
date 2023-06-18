@@ -69,6 +69,7 @@ class Factory {
             yield Factory.validateInitialization();
         });
     }
+    // Ensure everything is set up and ready to go
     static validateInitialization() {
         return __awaiter(this, void 0, void 0, function* () {
             // Make sure our factorio executable exists.
@@ -99,7 +100,7 @@ class Factory {
             }
             // write required mods (there really aren't any "required", but for some of the more advanced features we need the recipe-lister mod to provide us with recipes.
             // this is not automatic either yet - running a scenario or starting a new game is required on this installation first before recipe data is available. After this is done once, the crafting
-            // data is saved.
+            // data is saved. Either way, the code isn't there to read the data - yet.
             try {
                 yield fs_extra_1.default.copy(path_1.default.join(__dirname, '../', '../', 'factory', 'mods'), path_1.default.join(Factory.dataDir, 'mods'), { overwrite: true });
             }

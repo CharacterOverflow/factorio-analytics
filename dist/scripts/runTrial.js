@@ -6,7 +6,7 @@
 * Very basic, just meant to serve as a CLI method to call 'runTrial' essentially. Afterwards, then writes the exact 'Trial'
 * to the current directory, so it can be used for other purposes.
 *
-* Data written out will be be directed to a JSON file by default, but if CSV is desired use --csv (or -c) flag
+* Data written out will be directed to a JSON file
 *
 * */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {

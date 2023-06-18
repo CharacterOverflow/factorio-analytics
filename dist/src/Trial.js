@@ -1,8 +1,4 @@
 "use strict";
-/*
-* This class represents a single 'trial' we intend to run, which is a single execution of the factorio executable
-* The trial itself does not care about the blueprint string or any other BS before this. It only cares to organize data
-* */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Trial = void 0;
 const crypto_1 = require("crypto");

@@ -1,10 +1,10 @@
 {
   "name": "factorio-analytics",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A package for benchmarking Factorio blueprints, providing detailed results of outputs",
   "repository": {
     "type": "github",
-    "url": "https://github.com/CharacterOverflow/factorio-analytics"
+    "url": "git+https://github.com/CharacterOverflow/factorio-analytics.git"
   },
   "scripts": {
     "build": "tsc"
@@ -32,5 +32,17 @@
     "ts-node": "^10.9.1",
     "tslib": "^2.4.0",
     "typescript": "^4.7.4"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/CharacterOverflow/factorio-analytics/issues"
+  },
+  "homepage": "https://github.com/CharacterOverflow/factorio-analytics#readme",
+  "keywords": [
+    "factorio",
+    "benchmark",
+    "blueprint",
+    "nodejs",
+    "typescript"
+  ],
+  "license": "ISC"
 }

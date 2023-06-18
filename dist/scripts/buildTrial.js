@@ -1,12 +1,12 @@
 "use strict";
 /*
-* Blueprint-Scripts CLI - runTrial.(ts/js)
+* Blueprint-Scripts CLI - buildTrial.(ts/js)
 *
-* PURPOSE - to run a Blueprint string that is currently saved in a file, and have the data saved into a local folder
-* Very basic, just meant to serve as a CLI method to call 'runTrial' essentially. Afterwards, then writes the exact 'Trial'
-* to the current directory, so it can be used for other purposes.
-*
-* Data written out will be be directed to a JSON file by default, but if CSV is desired use --csv (or -c) flag
+* PURPOSE - to setup a blueprint string to be used in a trial, but do NOT run the trial itself.
+* This is useful for debugging - you can run the trial manually by copying the benchmark-cli folder from 'scenarios' to 'saves'
+* Inside factorio, you should be able to go to 'Load Game' and see the benchmark-cli game there. Load it up, and the trial should start!
+* Files will still be written  out according to settings, but there is no management code waiting for the trial to finish to cleanup / parse data.
+* Look in script-output/data for data files.
 *
 * */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {

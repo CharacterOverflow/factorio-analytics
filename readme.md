@@ -233,3 +233,10 @@ node /path/to/package/factorio-analytics/dist/scripts/runTrial.js
 --raw false
 --file /path/to/output/output.json
 ```
+
+### License
+**GNU GENERAL PUBLIC LICENSE**
+
+I am open to changes and features that others may wish to add - simply make a pull request and detail why these changes should be made.
+
+This entire package is relatively simple right now, but I expect it will grow in functionality over time.
