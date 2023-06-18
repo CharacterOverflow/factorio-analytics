@@ -13,6 +13,7 @@ import path from "path";
 require('dotenv').config();
 
 import 'jest'
+import {Logging} from "./src/Logging";
 
 jest.setTimeout(30000)
 
@@ -68,20 +69,58 @@ test('#2 | Build and run a complex trial, doing basic analysis as well', async f
         //
         length: 7200,
         itemInterval: 300,
-        elecInterval: 60,
+        elecInterval: 300,
         circInterval: 600,
-        pollInterval: 900,
+        pollInterval: 300,
     });
 
     await Factory.runTrial(trial);
+    const data = trial.data;
 
-    // Get iron plates per coal used
-    let iRatio = trial.data.get({category: 'item', label: 'iron-plate', direction: 'prod'})
-        .per(trial.data.get({category: 'item', label: 'coal', direction: 'cons'}));
+    // compare to if we do it all-in-one
+    let ratioIronToCoal = data
+        .get({category: 'item', label: 'iron-plate', spec: 'prod'})
+        .per({category: 'item', label: 'coal', spec: 'cons'});
 
-    // get the copper plates made per electricity used
-    let cRatio = trial.data.get({category: 'item', label: 'copper-plate', direction: 'prod'})
-        .per(trial.data.get({category: 'electric', label: 'all', direction: 'cons'}));
+    // inserter power consumed vs ALL consumed
+    let ratioInserterPowerVsAll = data
+        .get({category: 'electric', label: 'inserter', spec: 'cons', scale: 1000, radix: 2})
+        .per({category: 'electric', label: 'all', spec: 'cons', scale: 1000, radix: 2});
+
+    // Assembnler-2 power consumed vs ALL consumed
+    let ratioAssembler2PowerVsAll = data
+        .get({category: 'electric', label: 'assembling-machine-2', spec: 'cons', scale: 1000, radix: 2})
+        .per({category: 'electric', label: 'all', spec: 'cons', scale: 1000, radix: 2});
+
+    // Assembnler-2 power consumed vs ALL consumed
+    let ratioRefineryPowerVsAll = data
+        .get({category: 'electric', label: 'oil-refinery', spec: 'cons', scale: 1000, radix: 2})
+        .per({category: 'electric', label: 'all', spec: 'cons', scale: 1000, radix: 2});
+
+    // ratio of iron-plates produced per 10 pollution generated
+    let ratioIronToPollution = data
+        .get({category: 'item', label: 'iron-plate', spec: 'prod', radix: 1})
+        .per({category: 'pollution', label: 'all', scale: 10, radix: 2});
+
+    // Ratio of coal consumed per 100 pollution generated
+    let ratioCoalToPollution = data
+        .get({category: 'item', label: 'coal', spec: 'cons', radix: 1})
+        .per({category: 'pollution', label: 'all', scale: 100, radix: 2});
+
+    // Ratio of iron plates produced per 1000w consumed
+    let ratioIronToElectric = data
+        .get({category: 'item', label: 'iron-plate', spec: 'prod', radix: 1})
+        .per({category: 'electric', label: 'all', scale: 1000000, radix: 2});
+
+    // I DONT KNOW WHY, BUT I HAVE TO MULTIPLY ALL ELECTRIC VALUES BY 2 TO GET THEIR ACTUAL ELECTRIC VALUE!! WTF
+
+    Logging.log('info',ratioIronToCoal.descData);
+    Logging.log('info',ratioInserterPowerVsAll.descData);
+    Logging.log('info',ratioAssembler2PowerVsAll.descData);
+    Logging.log('info',ratioRefineryPowerVsAll.descData);
+    Logging.log('info',ratioIronToPollution.descData);
+    Logging.log('info',ratioCoalToPollution.descData);
+    Logging.log('info',ratioIronToElectric.descData);
 
     await expect(trial.data.itemStats.length > 100).toBe(true);
 

@@ -105,6 +105,11 @@ Factory.initialize({
 
     console.log(ratioIronToCoal.descData);
     console.log(ratioInserterPowerVsAll.descData);
+    console.log(ratioAssembler2PowerVsAll.descData);
+    console.log(ratioRefineryPowerVsAll.descData);
+    console.log(ratioIronToPollution.descData);
+    console.log(ratioCoalToPollution.descData);
+    console.log(ratioIronToElectric.descData);
     console.log('done!');
 
 }).then(() => {
