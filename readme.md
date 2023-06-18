@@ -134,13 +134,13 @@ console.log(d.files);
 // Lastly, you can use some helper functions on the Dataset to help provide fast information, such as...
 // compare to if we do it all-in-one
 let ratioIronToCoal = data
-        .get({category: 'item', label: 'iron-plate', direction: 'prod'})
-        .per({category: 'item', label: 'coal', direction: 'cons'});
+        .get({category: 'item', label: 'iron-plate', spec: 'prod'})
+        .per({category: 'item', label: 'coal', spec: 'cons'});
 
 // or...
 let inserterPowerRatio = data
-        .get({category: 'electric', label: 'inserter', direction: 'cons'})
-        .per({category: 'electric', label: 'all', direction: 'cons'});
+        .get({category: 'electric', label: 'inserter', spec: 'cons'})
+        .per({category: 'electric', label: 'all', spec: 'cons'});
 
 // NOTE - you MUST be recording the needed data with the trial for certain functionality to work. For example, you cannot
 // calculate the 'inserterPowerRatio' above without recording elecStats (make sure elecInterval is defined)
