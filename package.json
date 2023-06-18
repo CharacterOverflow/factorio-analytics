@@ -1,6 +1,6 @@
 {
   "name": "factorio-analytics",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A package for benchmarking Factorio blueprints, providing detailed results of outputs",
   "repository": {
     "type": "github",
@@ -36,6 +36,9 @@
   },
   "bugs": {
     "url": "https://github.com/CharacterOverflow/factorio-analytics/issues"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "homepage": "https://github.com/CharacterOverflow/factorio-analytics#readme",
   "keywords": [
