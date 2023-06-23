@@ -124,7 +124,7 @@ export class Factory {
         await fs.emptyDir(path.join(Factory.dataDir, 'scenarios', Factory.scenarioName));
 
         // Copy factory/scenario_source to datadir/scenarios/{scenarioName}
-        await fs.copy(path.join(__dirname, '../', '../', 'factory', 'scenario-source'), path.join(Factory.dataDir, 'scenarios', Factory.scenarioName), {overwrite: true});
+        await fs.copy(path.join(__dirname, '../', '../', 'factory', 'scenario-source'), path.join(Factory.dataDir, 'scenarios', 'scenario-source'), {overwrite: true});
 
         // Run factorio executable to convert scenario to save file
         Logging.log('info', {message: 'Converting scenario to save file'});
@@ -269,6 +269,10 @@ export class Factory {
 
         Logging.log('info', {message: `Trial ${t.id} built for execution, ready to run! If you want to run this manually via CLI to observe the raw results, use the following command:`})
         Logging.log('info', {message: `${Factory.executable} ${Factory.builtCmdParams.join(' ')}`})
+
+        Factory.builtTrial = null;
+        Factory.runningTrial = null;
+
 
         return t;
     }

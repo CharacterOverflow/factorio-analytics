@@ -22,29 +22,6 @@ test('Hello World Test', () => {
 });
 
 /*
-*   ||| LOCAL TESTS - FACTORIO EXECUTABLE. This is the 'Factory' container testing
-*  */
-test('#1 | Basic initialization, no execution', async function () {
-
-    // Initialize the factory
-    await Factory.initialize({
-        // INSTALL DIR of factorio - inside this folder should be others like 'bin' and 'data'
-        installDir: process.env.FACTORIO_INSTALL,
-
-        // DATA DIR of factorio - inside this folder should be others like 'mods' and 'scenarios'. This is the user information about factorio
-        // NOTE - If you have installed Factorio to a custom location yourself (ie, not through Steam or any other launcher), this will be the same as the installDir
-        dataDir: process.env.FACTORIO_DATA,
-
-        // The name to use for the scenario. This will be the name of the folder inside the 'scenarios' folder
-        scenarioName: 'unit-test',
-
-        // Whether or not we want to hide console logs to the user. Will still be written to file
-        hideConsoleLogs: true
-    });
-
-    await expect(Factory.sandboxLua).toBeDefined();
-})
-/*
 test('#2 | Build and run a basic trial', async function () {
 
     let bp = await fs.readFile(path.join(process.cwd(), 'factory', 'examples', 'smallbase.txt'), 'utf8');
@@ -61,7 +38,23 @@ test('#2 | Build and run a basic trial', async function () {
 
 });
 */
-test('#2 | Build and run a complex trial, doing basic analysis as well', async function () {
+test('#1 | Build and run a complex trial, doing basic analysis as well', async function () {
+    // Initialize the factory
+    await Factory.initialize({
+        // INSTALL DIR of factorio - inside this folder should be others like 'bin' and 'data'
+        installDir: process.env.FACTORIO_INSTALL,
+
+        // DATA DIR of factorio - inside this folder should be others like 'mods' and 'scenarios'. This is the user information about factorio
+        // NOTE - If you have installed Factorio to a custom location yourself (ie, not through Steam or any other launcher), this will be the same as the installDir
+        dataDir: process.env.FACTORIO_DATA,
+
+        // The name to use for the scenario. This will be the name of the folder inside the 'scenarios' folder
+        scenarioName: 'unit-test',
+
+        // Whether or not we want to hide console logs to the user. Will still be written to file
+        hideConsoleLogs: true
+    });
+
     let bp = await fs.readFile(path.join(process.cwd(), 'factory', 'examples', 'smallbasev2.txt'), 'utf8');
     let trial = new Trial({
         // Blueprint string to run a trial for

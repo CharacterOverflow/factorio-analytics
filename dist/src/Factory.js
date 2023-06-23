@@ -118,7 +118,7 @@ class Factory {
             // Delete datadir/scenarios/{scenarioName} contents if they exist
             yield fs_extra_1.default.emptyDir(path_1.default.join(Factory.dataDir, 'scenarios', Factory.scenarioName));
             // Copy factory/scenario_source to datadir/scenarios/{scenarioName}
-            yield fs_extra_1.default.copy(path_1.default.join(__dirname, '../', '../', 'factory', 'scenario-source'), path_1.default.join(Factory.dataDir, 'scenarios', Factory.scenarioName), { overwrite: true });
+            yield fs_extra_1.default.copy(path_1.default.join(__dirname, '../', '../', 'factory', 'scenario-source'), path_1.default.join(Factory.dataDir, 'scenarios', 'scenario-source'), { overwrite: true });
             // Run factorio executable to convert scenario to save file
             Logging_1.Logging.log('info', { message: 'Converting scenario to save file' });
             let p = yield new Promise((resolve, reject) => {
@@ -251,6 +251,8 @@ class Factory {
             Factory.runningTrialStage = 'built';
             Logging_1.Logging.log('info', { message: `Trial ${t.id} built for execution, ready to run! If you want to run this manually via CLI to observe the raw results, use the following command:` });
             Logging_1.Logging.log('info', { message: `${Factory.executable} ${Factory.builtCmdParams.join(' ')}` });
+            Factory.builtTrial = null;
+            Factory.runningTrial = null;
             return t;
         });
     }
