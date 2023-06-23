@@ -270,10 +270,6 @@ export class Factory {
         Logging.log('info', {message: `Trial ${t.id} built for execution, ready to run! If you want to run this manually via CLI to observe the raw results, use the following command:`})
         Logging.log('info', {message: `${Factory.executable} ${Factory.builtCmdParams.join(' ')}`})
 
-        Factory.builtTrial = null;
-        Factory.runningTrial = null;
-
-
         return t;
     }
 

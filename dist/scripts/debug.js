@@ -72,8 +72,6 @@ Factory_1.Factory.initialize({
         raw: false
     });
 }).then((trial) => {
-    return Factory_1.Factory.buildTrial(trial);
-}).then((trial) => {
     return Factory_1.Factory.runTrial(trial);
 }).then((trial) => {
     // Trial was run. lets test using our datasets!
