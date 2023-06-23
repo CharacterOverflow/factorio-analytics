@@ -8,6 +8,8 @@ import {spawn} from "child_process";
 import {Logging} from "./Logging";
 import winston from "winston";
 import {Dataset} from "./Dataset";
+import * as os from "os";
+import extract from "extract-zip";
 
 export interface IFactoryParams {
     installDir: string;
@@ -18,6 +20,9 @@ export interface IFactoryParams {
 
     // Optional, defaults to 'false'
     hideConsoleLogs?: boolean
+
+    // Optional, defaults to 'false'. If true, will delete all mods from the mod folder before continuing setup
+    resetSetup?: boolean
 }
 
 export class Factory {
@@ -43,8 +48,9 @@ export class Factory {
         return path.join(Factory.scenario, 'sandbox.lua')
     }
 
+    // this can be placed into the 'saves' folder isntead of 'scenarios'
     static get scenario() {
-        return path.join(Factory.dataDir, 'scenarios', Factory.scenarioName)
+        return path.join(Factory.dataDir, 'saves', Factory.scenarioName)
     }
 
     static get executable() {
@@ -58,6 +64,11 @@ export class Factory {
 
         if (params.scenarioName)
             Factory.scenarioName = params.scenarioName;
+
+        if (params.resetSetup === true) {
+            Logging.log('info', {message: 'Resetting mod folders'});
+            await fs.emptyDir(path.join(Factory.dataDir, 'mods'));
+        }
 
         // setup logging
         const logFormat = winston.format.printf(function (info) {
@@ -84,6 +95,10 @@ export class Factory {
         }
         Logging.log('info', {message: 'Factory initializing - logger started', ...params});
 
+        // Check if we have a scenario already built to use (we should by default, but verify, rebuild if needed)
+        if (!await fs.pathExists(path.join(__dirname, '../', '../', 'factory', 'scenario', 'sandbox.lua')))
+            await Factory.buildScenario();
+
         // Setup mod and scenario information
         await Factory.setupModsAndScenario();
 
@@ -91,10 +106,78 @@ export class Factory {
         await Factory.validateInitialization();
     }
 
+    /*
+    * Builds a scenario that can be loaded into factorio to run a benchmark.
+    * We use a scenario to serve as a template of a world at tick 0, which will focus on  exporting all data
+    * Custom scenarios may be desired for other use cases, such as placing resource deposits in specific locations
+    * Once a scenario is made, it needs to ahve the factorio executable convert it to a save file.
+    * This is not the only step - it also needs to be unzipped from its save file into a folder in the scenarios directory
+    * - despite being a 'save', we need it split out so we can replace lua values easily
+    * */
+    static async buildScenario() {
+        Logging.log('info', {message: 'Building scenario'});
+
+        // Delete all files in factory/scenario
+        await fs.emptyDir(Factory.scenario);
+
+        // Delete datadir/scenarios/{scenarioName} contents if they exist
+        await fs.emptyDir(path.join(Factory.dataDir, 'scenarios', Factory.scenarioName));
+
+        // Copy factory/scenario_source to datadir/scenarios/{scenarioName}
+        await fs.copy(path.join(__dirname, '../', '../', 'factory', 'scenario-source'), path.join(Factory.dataDir, 'scenarios', Factory.scenarioName), {overwrite: true});
+
+        // Run factorio executable to convert scenario to save file
+        Logging.log('info', {message: 'Converting scenario to save file'});
+        let p = await new Promise((resolve, reject) => {
+            let execResults = '';
+            let s = spawn(Factory.executable,
+                ['-m', 'scenario-source'], {});
+            let er;
+            s.stdout.on('data', (data: string) => {
+                execResults += data
+            });
+            s.on('close', (code) => {
+                // test has finished - proceed!
+                if (er)
+                    reject(er)
+                else if (code === 1)
+                    reject('Could not start executable - is the game currently running?')
+                else
+                    resolve(execResults);
+            });
+            s.on('error', (err) => {
+                er = err;
+            });
+        });
+
+        // Unzip datadir/saves/{scenarioName}.zip to factory/scenario
+        Logging.log('info', {message: 'Unzipping save file'});
+        await extract(path.join(Factory.dataDir, 'saves', 'scenario-source.zip'), {dir: path.join(__dirname, '../', '../', 'factory', 'scenario')});
+
+        // Now we need to copy all files from factory/scenario/scenario-source to factory/scenario
+        await fs.copy(path.join(__dirname, '../', '../', 'factory', 'scenario', 'scenario-source'), path.join(__dirname, '../', '../', 'factory', 'scenario'), {overwrite: true});
+
+        // delete the scenario-source folder inside scenario
+        await fs.remove(path.join(__dirname, '../', '../', 'factory', 'scenario', 'scenario-source'));
+
+        // call the scenario and mods setup function again
+        await Factory.setupModsAndScenario();
+
+        // Return text logs of what happened
+        return p;
+    }
+
     // Ensure everything is set up and ready to go
     static async validateInitialization() {
-        // Make sure our factorio executable exists. SKIP THIS STEP FOR NOW - doesn't work right on windows
-        //let execExists = fs.pathExists(Factory.executable);
+        // Make sure our factorio executable exists. If windows machine, add 'exe' to the end
+
+        // write  code below to check the OS and add the .exe if needed
+        let execExists;
+        if (os.platform() === 'win32') {
+            execExists = fs.pathExists(Factory.executable + '.exe');
+        } else {
+            execExists = fs.pathExists(Factory.executable);
+        }
 
         // Make sure our scenario exists
         let scenarioExists = fs.pathExists(Factory.scenario);
@@ -103,10 +186,10 @@ export class Factory {
         let scenarioLuaExists = fs.pathExists(Factory.sandboxLua);
 
         // This will 'throw' an error if any of the above fail harshly, or will be thrown if they return false below
-        let d = await Promise.all([/*execExists, */scenarioExists, scenarioLuaExists])
+        let d = await Promise.all([execExists, scenarioExists, scenarioLuaExists])
 
-        //if (d[0] === false)
-         //   throw new Error('Factorio executable not found at ' + Factory.executable);
+        if (d[0] === false)
+            throw new Error('Factorio executable not found at ' + Factory.executable);
 
         if (d[0] === false)
             throw new Error('Scenario directory not found at ' + Factory.scenario);
@@ -124,9 +207,7 @@ export class Factory {
             await fs.copy(path.join(__dirname, '../', 'factory', 'scenario'), Factory.scenario, {overwrite: true});
         }
 
-        // write required mods (there really aren't any "required", but for some of the more advanced features we need the recipe-lister mod to provide us with recipes.
-        // this is not automatic either yet - running a scenario or starting a new game is required on this installation first before recipe data is available. After this is done once, the crafting
-        // data is saved. Either way, the code isn't there to read the data - yet.
+        Logging.log('info', {message: `Moving template mods to location ${path.join(Factory.dataDir, 'mods')}`});
         try {
             await fs.copy(path.join(__dirname, '../', '../', 'factory', 'mods'), path.join(Factory.dataDir, 'mods'), {overwrite: true});
         } catch (e) {
@@ -148,11 +229,6 @@ export class Factory {
         } catch (e) {
             Logging.log('error', {message: `Failed to delete raw files for trial ${trialId}`, error: e});
         }
-    }
-
-    // Returns the data contained inside 'filename', from script=output directory
-    static async loadRawFile(filename: string) {
-        return await fs.readFile(path.join(Factory.dataDir, 'script-output', filename), 'utf8');
     }
 
     /*
@@ -229,7 +305,7 @@ export class Factory {
                 else if (code === 1)
                     reject('Could not start executable - is the game currently running?')
                 else
-                resolve(code);
+                    resolve(code);
             });
             s.on('error', (err) => {
                 er = err;
@@ -262,7 +338,9 @@ export class Factory {
         }
     }
 
-
+    /*
+    * Used to replace a line in a lua file - looks for specific matching XML brackets
+    * */
     private static _replaceLineAfterKey(source: string, key: string, newLine: string): string {
         // Find where our <key> is defined, and replace it with the UID we want
         let uidReplaceStart = source.indexOf('\n', source.indexOf(key) + 1);

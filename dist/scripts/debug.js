@@ -46,7 +46,7 @@ const bpFile = path_1.default.join(process.cwd(), 'factory/examples/1200spm_base
 Factory_1.Factory.initialize({
     installDir: process.env.FACTORIO_INSTALL,
     dataDir: process.env.FACTORIO_DATA,
-    scenarioName: 'benchmark-cli',
+    scenarioName: 'benchmark-cli-v1.2',
     hideConsoleLogs: false
 }).then(() => {
     // Read file with blueprint string
@@ -71,6 +71,8 @@ Factory_1.Factory.initialize({
         // If true, the trial does no processing after the fact. Data is left raw, no files are moved. Remember to clean up!
         raw: false
     });
+}).then((trial) => {
+    return Factory_1.Factory.buildTrial(trial);
 }).then((trial) => {
     return Factory_1.Factory.runTrial(trial);
 }).then((trial) => {
