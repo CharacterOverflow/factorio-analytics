@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Blueprint = void 0;
+exports.EmptyBlueprint = exports.Blueprint = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 /*
 * This class will represent a single BLUEPRINT (aka a Factory or Design) that we want to be able to use
@@ -14,6 +14,8 @@ const crypto_1 = __importDefault(require("crypto"));
 * */
 class Blueprint {
     constructor(bp) {
+        if (!bp)
+            return;
         this.bp = bp.replaceAll('\n', '');
         this.parse();
     }
@@ -24,4 +26,10 @@ class Blueprint {
     }
 }
 exports.Blueprint = Blueprint;
+class EmptyBlueprint extends Blueprint {
+    constructor() {
+        super('EMPTY');
+    }
+}
+exports.EmptyBlueprint = EmptyBlueprint;
 //# sourceMappingURL=Blueprint.js.map

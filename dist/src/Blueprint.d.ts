@@ -4,3 +4,6 @@ export declare class Blueprint {
     constructor(bp: string);
     parse(): void;
 }
+export declare class EmptyBlueprint extends Blueprint {
+    constructor();
+}

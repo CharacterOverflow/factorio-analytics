@@ -12,14 +12,58 @@
 import * as dotenv from 'dotenv';
 import {Trial} from "../src/Trial";
 import * as fs from "fs";
-import {Factory} from "../src/Factory";
 import path from "path";
-import {Dataset} from "../src/Dataset";
+import {Factory} from "../src/Factory";
+import {SourceBlueprint} from "../src/TrialSource";
+import {ModList} from "../src/ModList";
 
 dotenv.config();
 
-const bpFile = path.join(process.cwd(), 'factory/examples/1200spm_base.bp');
+const bpFile = path.join(process.cwd(), 'factory/examples/45spm_base.bp');
 
+/*
+* CREATE A WAY TO START FACTORY RUNNER WITHOUT INDIVIDUAL VALUES - RATHER, A CONFIG FILE
+* specify path, or leave default for 'factory.config.json'
+*
+* if installed as a package, needs to be easy to use with raw values - dont need to say modlist name, rather list the mods you want to have!
+* or scenario - list the scenario name that should be present, no questions asked if it does or not
+*
+* etc etc
+*
+* otherwise, API can go from DB mostly and allow user to change things on the frontend
+*
+* */
+
+Factory.initialize({
+    installDir: '/home/overflow/Apps/factorio_auto_v2',
+    hideConsole: false
+    // user info is provided auto-magically from .env
+}).then(async () => {
+    console.log('SETUP DEBUG STAGE 1 COMPLETE');
+
+    // lets try running a blueprint test
+    let bp = fs.readFileSync(bpFile, 'utf8');
+
+    let source = new SourceBlueprint(bp);
+
+    await source.hashFinished;
+    return new Trial({
+        source,
+        length: 7200,
+        tickInterval: 60,
+        initialBots: 200,
+        recordSystem: false,
+        recordCircuits: true,
+        recordPollution: true,
+    })
+
+}).then(async (t) => {
+    let results = await Factory.analyzeTrial(t);
+    console.log('TRIAL RUN!');
+}).catch((e) => {
+    console.error(e);
+})
+/*
 Factory.initialize({
     installDir: process.env.FACTORIO_INSTALL,
     dataDir: process.env.FACTORIO_DATA,
@@ -117,3 +161,4 @@ Factory.initialize({
 }).catch((e) => {
     console.error(e);
 })
+*/

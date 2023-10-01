@@ -1,36 +1,35 @@
 # factorio-analytics
 
-A package that gives you in-depth details and statistics about your blueprint's in-game functionality
+A package that gives you in-depth details and statistics normally only seen in-game. 
 
-This library utilizes the factorio executable on your local machine, so a copy of Factorio is also required to use this package. 
-
-Created using Factorio version 1.1.80
+This library utilizes the factorio executable locally, so a copy of Factorio is also required.
 
 ### Recommended Setup
 
-- Linux (Windows works as well)
-- A separate install of Factorio, downloaded from their website.
-  - This can help keep mods and settings separate between your gaming install and your code install
-  - If using Windows, make sure you download the 'zip' version to avoid needing to run an installer
-- A Factorio Blueprint that you want to test / analyze
+- Linux (untested on Windows)
+- Set FACTORIO_USER and FACTORIO_TOKEN ENV variables to your username and factorio.com API token
+  - This token is used to download the game and mods
+  - Available at: https://www.factorio.com/profile
+  - If you do NOT provide a FACTORIO_USER and FACTORIO_TOKEN, only the server (headless) version can be used, and no mods will be downloaded
+- Set FACTORIO_INSTALL ENV variable to a folder to use for installing Factorio
+  - I recommend using an EMPTY FOLDER, and letting the code install and use the game itself
+  - If you choose, you can identify an existing install of Factorio (NON-STEAM)
+- A Factorio Blueprint (or savegame) that you want to test / analyze
   - Remember to add Infinity Chests to your blueprint to spawn source items! If your blueprint does not include these to provide items, nothing will be done in-game
 
-### Project Ideas
+#### Coming soon
 
-I don't have the time for all of these projects, but these are some examples of what could be made using this package...
-
-- Blueprint Chart - to view a factory's results graphically on a site or straight to PNG
-- Blueprint Ranking / Competition - score blueprints by their actual outputs, highlighting far more data to compare them
-- Blueprint AI Model - if enough data is collected, could an AI learn to generate effective blueprints? This package can help test and train an AI
-- Blueprint Library Electron app - would be cool to have a factorio-assistant on the side, that can more intelligently manage all my blueprints
-- Blueprint Database - A massive database of blueprints where you can search/filter by actual outputs / rates. Could be possible now!
-
-Go crazy! Show us all what you make, and I'd love to add your project to this document.
+- TSDoc documentation and site
+- Unit Testing using AVA
+- More repositories that will manage API/CLI usage, while this repository focuses on core functionality
 
 ## Getting Started
 
 ### Usage
-This package is intended to be used with NodeJS, for server use only. It is meant to be used as an NPM module, but also has various CLI options as well.
+This package is intended to be used with NodeJS, for server use only. It is meant to be used as an NPM module and called
+by other code you must write. 
+
+In the future, there will be a dedicated repository to API and CLI usage - this repository is only supposed to represent core processes
 
 ### Install via NPM
 
@@ -38,9 +37,41 @@ This package is intended to be used with NodeJS, for server use only. It is mean
 $ npm install factorio-analytics
 ```
 
+### Setting ENV variables
+You can either define these variables in your environment, or by creating a .env file in the root folder.
+
+ENV values that can be set...
+- `FACTORIO_INSTALL`
+  - The directory to install Factorio in (or installation to use)
+- `FACTORIO_USER`
+  - The USERNAME on factorio.com to use
+- `FACTORIO_TOKEN`
+  - The TOKEN found on your profile at https://www.factorio.com/profile
+- `FACTORIO_BUILD`
+  - The 'build' of Factorio to download, if applicable. 'alpha' or 'headless'
+  - Alpha is the normal build of the game, and requires the game purchased to use!
+- `FACTORIO_SET_MODS`
+  - Determines if the process can modify mod-list.json. If false, will only obey mod list from mod-list.json, not code
+  - If you are providing mod names in code during initialization, set this to true
+- `FACTORIO_DL_MODS`
+  - Whether or not we are allowed to download mods
+  - If you need specific versions of mods or the game, set this to false
+- `FACTORIO_DL_TIMEOUT`
+  - After how long a download should be force-stopped - both mods and game download itself
+
+**NOTE** As of version  2.0, all options except for FACTORIO_SET_MODS, FACTORIO_DL_MODS, and FACTORIO_DL_TIMEOUT can be
+set during the 'Factory.initialization' call
+
 ### Starting the Factory
 
-Set env variables FACTORIO_INSTALL and FACTORIO_DATA as explained below for easier usage.
+The only hard 'requirement' for starting the factory is setting 'installDir' - which is set by process.env.FACTORIO_INSTALL by default if not provided
+
+The example below shows a setup with barebones 'Krastorio2' installed. To run 'vanilla' and force-clear any mods, 
+ensure FACTORIO_SET_MODS = true and that the mods array is empty or undefined
+
+Mods MUST be defined during initialization, and any trials run afterwards will use these mods. This is to ensure steps like
+compiling the scenario are done WITH the specified mods, preventing mismatch and migration (slowdowns) when re-using this scenario for future trials
+
 ```ts
 await Factory.initialize({
     // INSTALL DIR of factorio - inside this folder should be others like 'bin' and 'data'
@@ -48,13 +79,15 @@ await Factory.initialize({
 
     // DATA DIR of factorio - inside this folder should be others like 'mods' and 'scenarios'. This is the user information about factorio
     // NOTE - If you have installed Factorio to a custom location yourself, this will be the same as the installDir
-    dataDir: process.env.FACTORIO_DATA,
-
-    // The name to use for the scenario. This will be the name of the folder inside the 'scenarios' folder
-    scenarioName: 'factorio-analytics',
+    // NOTE 2 - If you are using Steam install, THIS WILL BE DIFFERENT than installDir
+    dataPir: process.env.FACTORIO_INSTALL,
+    
+    // List of mods that you want to include. If FACTORIO_SET_MODS is true, only these mods will be used and a new mod-list.json file created
+    // If FACTORIO_DL_MODS = false, you will need to download the mods yourself and ensure some version of them exists in the /mods folder
+    mods: ['flib','Krastorio2','Krastorio2Assets'],
 
     // Whether or not we want to hide console logs to the user. Will still be written to file factory.log no matter what
-    hideConsoleLogs: true
+    hideConsole: false
 });
 ```
 
@@ -70,6 +103,10 @@ let bp = fs.readFileSync('filename.bp', 'utf8');
 let t = new Trial({
   // Either a reference to the blueprint object, or a blueprint string itself to run
   bp,
+  
+  // The name of the scenario to use, if you want to specify a custom one. Defaults to 'scenario-source' for basic benchmarking
+  // If you want to benchmark an existing SAVEGAME, specify the savegame name (including .zip)
+  scenario: 'scenario-source',  // MYSAVEGAME_FILE.zip for savegames
 
   // how long (ticks) the trial will run for. Remember, factorio is locked at 60 ticks per second
   length: 108000,
@@ -152,53 +189,52 @@ let inserterPowerRatio = data
 
 ## Advanced 
 
-The following information is useful if you're attempting to...
-- Add mods to the benchmarking process
-- Change world settings (such as the 500x500 limit)
-- Add resource patches at certain spots to line up for a specific blueprint you have in mind
-- Want to update your scenario to a specific version of Factorio
-  - If the scenario version is different than the executable, then there is an added delay due to a 'migration' process
-  - Compiling your own scenario using your install would solve this
+As of Version 2.0, Scenario and Mod handling has been 100% overhauled. You can now specify your own custom scenario to use for benchmarking,
+and have mods automatically download based on mod names specific in-application, or from mod-list.json
 
-### Adding mods
+In addition, you can also benchmark your own savegame if you so desire! Pretty cool! Just specify the savegame you want to test
+as 'scenarioName' (including .zip), ensure the save file is in the /saves folder, then run! See script 'scripts/runSave.js'
 
-You might have noticed that there is a folder here that contains mods (factory/mods). By default, it contains the recipe-lister mod which will likely be used in future features. 
-If you copy your entire 'mods' directory for Factorio into this folder, those mods and their settings will be loaded for the benchmark!
+### Mods
 
-It's that easy - just copy your entire 'mods' folder to the factory folder here, then run your benchmark!
+Mods are automatically downloaded (assuming you provide a FACTORIO_TOKEN and FACTORIO_DL_MODS is not false)
 
-**NOTE** - it is HIGHLY RECOMMENDED that you compile a custom benchmark scenario when doing this as well. Otherwise, trials take MUCH longer to run due to
-the 'migration' process, which may not even be successful depending on the type/complexity of the mods in question.
+If 'mods' array is empty or undefined and FACTORIO_SET_MODS is not false, 'vanilla' factorio will be used
 
-**NOTE 2** - Any mods that manipulate / use surfaces for their features (such as warehouses) will not function as intended - I am honestly
-not even sure if the blueprint will even place it correctly.
+If FACTORIO_SET_MODS is false and FACTORIO_DL_MODS is true, then the existing mod-list.json file will be used
 
 ### Compiling your own benchmark scenario
 
-To compile your own scenario file...
-1. Copy factory/scenario-source folder to your factorio/scenarios location (so that factorio sees it as a scenario)
-2. Make any desired changes to the scenario in 'Map Editor'
-3. Run ```factorio -m scenario-source```
-4. In your 'saves' location, there should now be a file called 'scenario-source.zip'. Copy everything inside of this zip
-to factorio-analytics/factory/scenario, overwriting all files.
+Really want to benchmark an awesome mining setup? Or simulate how your wall would work with enemies spawned in at certain coordinates?
 
-From this, your custom scenario should now be used in any benchmarks, with whatever changes you made!
+You can do that! You just need to be willing to craft your own scenario, following these steps below...
 
-If you managed to get mods working and through the 'conversion' process above, then it SHOULD be able to function without issues. 
-A custom scenario is NOT required for mods, but it will ensure everything works correctly and overall be faster due to not needing a migration.
+FIRST OFF, I recommend making sure that the Factorio install used for this process is the 'ALPHA' version, meaning 'graphics' release. You can set this as the version to download by setting FACTORIO_BUILD=alpha in ENV.
+Having the graphical version to use will allow us to launch the game, edit a scenario, and save it as a copy all without dealing with files.
 
-**NOTE** - not all mods are going to work with this. In particular, if the mod manipulates the 'surface' with a blueprint (Warehousing mods, for example) or
-requires a player character in-game, it will likely not function correctly.
-
-
-
+To create your own custom scenario...
+1. Open your Install directory (FACTORIO_INSTALL).
+   - Open bin/x64/factorio (factorio.exe on Windows)
+2. After Factorio loads, go to 'Map Editor'
+3. Click 'Edit Scenario'
+4. Choose 'scenario-source'
+   - This is the 'source' scenario, which is considered default. I recommend using this for ALL custom benchmark scenarios
+5. Click 'Save As', then save it as some other scenario (NO SPACES, NO SPECIAL CHARACTERS BESIDES _)
+6. Now, go crazy and customize the scenario. Add in biters manually, add physical features, forests, ore, water, whatever your heart desires.
+   - Be aware - blueprint gets placed at EXACTLY 0,0 centered.
+7. Once changes are done, make sure you click 'save'
+8. In code, you can now specify your scenarioName and it will be used
 
 ## CLI Usage
 
+### _CLI Usage is being depreciated in this package, and will instead be handled by factorio-analytics-cli_
+### Use at your own risk!
+**These scripts may be outdated and lack some functionality, but should still work so long as Factorio is already installed and 
+mods are either set up manually, or not used at all**
+
 Want to use all this functionality in a different application, or just otherwise access it via CLI? There are 2 premade scripts that you can use.
 
-
-**NOTE** YOU MUST SPECIFY THE ENVIRONMENT VARIABLES FACTORIO_INSTALL AND FACTORIO_DATA
+**NOTE** YOU MUST SPECIFY THE ENVIRONMENT VARIABLE FACTORIO_INSTALL
 
 #### buildTrial
 
@@ -241,14 +277,13 @@ node /path/to/package/factorio-analytics/dist/scripts/runTrial.js
 ### License
 **GNU GENERAL PUBLIC LICENSE**
 
+See 'LICENSE' in root directory
+
 ### Other
 
-I am open to changes and features that others may wish to add - simply make a pull request and detail why these changes should be made.
+Version 2.0 has some major changes overall, if you were using this package prior to 8/25/2023 and want to go back, I recommend
+going back to version 1.2.3
 
-This entire package is relatively simple right now, but I expect it will grow in functionality over time.
+In the future, the concept of 'mods' will likely be moved into Trial like 'scenario' has been in 2.0
 
-If you need to get in touch with me, the best way (besides email) is to reach out on Github or Discord.
-
-If you have a feature request or issue, feel free to create one on the Github page!
-
-If you have changes you'd like to make, please make a pull request and outline what the changes add
+I need to figure out how to read the modlist from an existing save file first before this can occur though

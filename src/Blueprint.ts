@@ -16,8 +16,12 @@ export class Blueprint {
     readonly bp: string;
 
     constructor(bp: string) {
+        if (!bp)
+            return
+
         this.bp = bp.replaceAll('\n', '');
         this.parse();
+
     }
 
     // parses blueprint to fill out data in this class
@@ -30,4 +34,10 @@ export class Blueprint {
     // What other details should be included in this class? Open the blueprint and list entities? What is needed?
     // This is being left a full complete class as I expect many things to be added here in the future
 
+}
+
+export class EmptyBlueprint extends Blueprint {
+    constructor() {
+        super('EMPTY');
+    }
 }

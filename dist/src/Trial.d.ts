@@ -1,30 +1,42 @@
-import { Dataset } from "./Dataset";
-import { Blueprint } from "./Blueprint";
+import { TrialSource } from "./TrialSource";
 export interface ITrialParams {
-    bp?: Blueprint | string;
+    source: TrialSource | string;
     length?: number;
-    itemInterval?: number;
-    elecInterval?: number;
-    circInterval?: number;
-    pollInterval?: number;
-    sysInterval?: number;
+    tickInterval?: number;
     initialBots?: number;
-    raw?: boolean;
+    recordItems?: boolean;
+    recordElectric?: boolean;
+    recordCircuits?: boolean;
+    recordPollution?: boolean;
+    recordSystem?: boolean;
 }
+export interface ITrialDataFiles {
+    items?: string;
+    electric?: string;
+    circuits?: string;
+    pollution?: string;
+}
+export type TTrialStages = 'new' | 'preparing' | 'prepared' | 'compiling' | 'compiled' | 'running' | 'ran' | 'analyzing' | 'analyzed' | 'complete';
 export declare class Trial {
     id: string;
-    bp: Blueprint;
-    length?: number;
-    itemInterval?: number;
-    elecInterval?: number;
-    circInterval?: number;
-    pollInterval?: number;
-    sysInterval?: number;
+    stage: TTrialStages;
+    source: TrialSource;
+    length: number;
+    tickInterval: number;
     initialBots?: number;
-    keepRaw?: boolean;
-    data: Dataset;
+    recordItems: boolean;
+    recordElectric: boolean;
+    recordCircuits: boolean;
+    recordPollution: boolean;
+    recordSystem: boolean;
+    startedRunAt: Date;
     startedAt: Date;
     endedAt: Date;
+    textLogs: string[];
+    rawSystemText: string;
+    metadata: any;
+    get dataFiles(): ITrialDataFiles;
     constructor(params: ITrialParams);
-    linkData(data: Dataset): void;
+    get ready(): Promise<boolean>;
+    setStage(stage: TTrialStages): void;
 }

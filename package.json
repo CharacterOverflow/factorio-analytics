@@ -1,14 +1,14 @@
 {
   "name": "factorio-analytics",
-  "version": "1.2.3",
-  "description": "A package for benchmarking Factorio blueprints, providing detailed results of outputs",
+  "version": "2.0",
+  "description": "A package for benchmarking Factorio blueprints, providing detailed game data down to the tick",
   "repository": {
     "type": "github",
     "url": "git+https://github.com/CharacterOverflow/factorio-analytics.git"
   },
   "scripts": {
     "build": "tsc",
-    "test": "jest"
+    "test": "ava --timeout=2m"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -18,19 +18,23 @@
     "@types/fs-extra": "^11.0.1",
     "@types/lodash": "^4.14.192",
     "@types/luxon": "^3.3.0",
+    "axios": "^1.4.0",
+    "decompress": "^4.2.1",
+    "decompress-tarxz": "^3.0.0",
     "dotenv": "^16.0.3",
     "extract-zip": "^2.0.1",
+    "factorio-blueprint": "^2.6.5",
     "fs-extra": "^11.1.1",
     "lodash": "^4.17.21",
     "luxon": "^3.3.0",
     "minimist": "^1.2.8",
+    "typeorm": "^0.3.17",
     "winston": "^3.8.2"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.1",
+    "@ava/typescript": "^4.1.0",
     "@types/node": "^18.15.3",
-    "jest": "^29.5.0",
-    "ts-jest": "^29.1.0",
+    "ava": "^5.3.1",
     "ts-node": "^10.9.1",
     "tslib": "^2.4.0",
     "typescript": "^4.7.4"
@@ -44,7 +48,17 @@
     "benchmark",
     "blueprint",
     "nodejs",
-    "typescript"
+    "typescript",
+    "analytics",
+    "api"
   ],
-  "license": "ISC"
+  "license": "GNU GPLv3",
+  "ava": {
+    "typescript": {
+      "rewritePaths": {
+        "/": "dist/"
+      },
+      "compile": false
+    }
+  }
 }

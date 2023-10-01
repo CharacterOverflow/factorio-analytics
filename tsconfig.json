@@ -25,6 +25,7 @@
         "/node_modules"
     ],
     "include": [
+        "test.ts",
         "index.ts",
         "src/**/*",
         "scripts/**/*"

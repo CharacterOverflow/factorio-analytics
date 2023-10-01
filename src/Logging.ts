@@ -4,7 +4,11 @@ import winston, {format} from "winston"
 export class Logging {
     private static _innerLogger: winston.Logger;
 
+    // Silently returns if logger already started -  to ensure we can keep a logger going even through server init changes
     static startLogger(transports: any[]) {
+        if (this._innerLogger)
+            return;
+
         let cObj = {
             level: 'info',
             format: format.combine(
@@ -18,6 +22,11 @@ export class Logging {
         };
 
         this._innerLogger = winston.createLogger(cObj);
+    }
+
+    static stopLogger() {
+        Logging._innerLogger.close();
+        Logging._innerLogger = undefined
     }
 
     // populate 'message' on obj first!!! message field is what gets used

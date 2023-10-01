@@ -56,9 +56,7 @@ const sysInterval = argv.sys ? argv.sys : (argv.s ? argv.s : null);
 const raw = argv.raw ? argv.raw : (argv.r ? argv.r : false);
 Factory_1.Factory.initialize({
     installDir: process.env.FACTORIO_INSTALL,
-    dataDir: process.env.FACTORIO_DATA,
-    scenarioName: 'benchmark-cli',
-    hideConsoleLogs: false
+    hideConsole: false
 }).then(() => {
     // Read file with blueprint string
     let bp = fs.readFileSync(bpFile, 'utf8');

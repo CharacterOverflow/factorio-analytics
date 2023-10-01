@@ -27,7 +27,10 @@ exports.Logging = void 0;
 const winston_1 = __importStar(require("winston"));
 // Central static method for logging, so that I don't need to import the logger everywhere, and I can change the logger implementation later if I want to.
 class Logging {
+    // Silently returns if logger already started -  to ensure we can keep a logger going even through server init changes
     static startLogger(transports) {
+        if (this._innerLogger)
+            return;
         let cObj = {
             level: 'info',
             format: winston_1.format.combine(winston_1.format.align(), winston_1.format.timestamp(), winston_1.format.json()),
@@ -36,6 +39,10 @@ class Logging {
             transports: transports
         };
         this._innerLogger = winston_1.default.createLogger(cObj);
+    }
+    static stopLogger() {
+        Logging._innerLogger.close();
+        Logging._innerLogger = undefined;
     }
     // populate 'message' on obj first!!! message field is what gets used
     static log(level, obj) {
