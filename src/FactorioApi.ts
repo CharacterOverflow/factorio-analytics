@@ -5,7 +5,7 @@
 * */
 
 import axios, {AxiosError} from "axios";
-import {Logging} from "../Logging";
+import {Logging} from "./Logging";
 import path from "path";
 import {promisify} from 'util';
 import {exec} from "child_process";
@@ -87,7 +87,7 @@ export class FactorioApi {
                 Logging.log('error', 'Factorio API credentials are invalid. Please check your username and token.');
                 throw new Error(`Factorio API credentials are invalid. Please check your username and token. ${e.message}`)
             } else {
-                Logging.log('error', e);
+                Logging.log('error', e.message);
                 throw new Error(e.message)
             }
         }

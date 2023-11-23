@@ -1,5 +1,5 @@
 /*
-* Generic base class of the Trial Source object.
+* Generic base class of the Trial OldSource object.
 * */
 import crypto from "crypto";
 import path from "path";
@@ -7,8 +7,11 @@ import fs from "fs-extra";
 import Blueprint from "factorio-blueprint"
 import {ModList} from "./ModList";
 
-export class TrialSource {
+export class OldSource {
     type: string;
+
+    // MUST BE SET IN CHILD CONSTRUCTORS
+    id: string;
 
     // basic name/desc fields for easy usage / display / organization in the future
     name?: string;
@@ -32,10 +35,10 @@ export class TrialSource {
         }
     }
 
-    hashFinished: Promise<boolean> = null;
+    ready: Promise<boolean> = null;
 
     async updateHash(): Promise<boolean> {
-        throw new Error('Hashing in a non-typed TrialSource not implemented - create a TrialSaveGame or TrialBlueprint instead');
+        throw new Error('Hashing in a non-typed OldSource not implemented - create a TrialSaveGame or TrialBlueprint instead');
     }
 
 }
@@ -46,7 +49,8 @@ export class TrialSource {
 * Seeing as we dont have a blueprint to take a hash of for our 'primary key' id value, we instead will just generate an ID
 *
 * */
-export class SourceSaveGame extends TrialSource {
+/*
+export class SourceSaveGame extends OldSource {
     type: string = 'savegame';
 
     // the ID is generated from a hash of the savegame file - this way, identical savegames resolve to the same ID
@@ -80,12 +84,21 @@ export class SourceSaveGame extends TrialSource {
     // because this is a save game, we need to do things a little differently. Instead of using a scenario, we will
     // make sure that our .zip file gets extracted and the needed lua files moved/updated
 
-}
+}*/
+
+/*
+* TODO
+*  1. REMAKE SOURCE CLASSES TO JUST BE 1 CLASS
+*  2. ADD DATABASE FUNCTIONALITY TO ALL CLASSES
+*  3. MAKE BASE INTERFACE FOR ALL 'CORE' FIELDS IN A OBJECT
+*       - TRIAL DERIVES FROM ITRIAL
+*       - FRONTEND CAN JUST USE INTERFACE CLASSES, NEVER TOUCH SQLITE, just use interfaces
+* */
 
 /*
 * A trial that is running a blueprint, placed into the template scenario to create a save game
-* */
-export class SourceBlueprint extends TrialSource {
+* *//*
+export class SourceBlueprint extends OldSource {
     type: string = 'blueprint';
 
     // the ID is generated from a hash of the blueprint string - this way, identical blueprints resolve to the same ID
@@ -114,3 +127,4 @@ export class SourceBlueprint extends TrialSource {
     }
 
 }
+*/

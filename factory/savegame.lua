@@ -1,4 +1,4 @@
--- BENCHMARK SAVEGAME CONVERSION - V1.2
+-- BENCHMARK SAVEGAME CONVERSION - V1.3
 --[[
 This file is meant to be placed into a savegame, along with being 'included' from control.lua.
 It will allow the normal benchmarking to occur - but this time, no blueprint is tested, only a savegame itself
@@ -35,7 +35,7 @@ local UID = 'SAVE_GAME_TRIAL2'
 local ITEM_TICKS = 300
 --</ITEM_TICKS>--
 --<ELEC_TICKS>--
-local ELEC_TICKS = 300
+local ELEC_TICKS = nil
 --</ELEC_TICKS>--
 --<CIRC_TICKS>--
 local CIRC_TICKS = 300

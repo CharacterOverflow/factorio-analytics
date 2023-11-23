@@ -44,12 +44,14 @@ const winston_1 = __importDefault(require("winston"));
 const path_1 = __importDefault(require("path"));
 const fs_extra_1 = __importDefault(require("fs-extra"));
 const os = __importStar(require("os"));
-const FactorioApi_1 = require("./api/FactorioApi");
+const FactorioApi_1 = require("./FactorioApi");
 const decompress_1 = __importDefault(require("decompress"));
-const decompress_tarxz_1 = __importDefault(require("decompress-tarxz"));
 const child_process_1 = require("child_process");
 const process = __importStar(require("process"));
-const Dataset_1 = require("./Dataset");
+const lodash_1 = __importDefault(require("lodash"));
+const SavedTrial_1 = require("./database/SavedTrial");
+const SavedDataset_1 = require("./database/SavedDataset");
+const FactoryDatabase_1 = require("./FactoryDatabase");
 /*
 * Trial Prepare, Compile, Run, and Analyze
 
@@ -112,45 +114,56 @@ class Factory {
             // mark as prepared
             t.setStage('preparing');
             try {
-                if (t.source.type == 'blueprint') {
+                if (t.source.variant == 'blueprint') {
                     // COpy our scenario source to scenarios, as we need it for blueprint running
                     let trialFolder = yield Factory.copyScenarioSourceToFolder(t.id);
                     // now, we need to modify the sandbox.lua file with our parameters
                     yield Factory.writeKeyValuesToLuaFile(path_1.default.join(trialFolder, 'sandbox.lua'), {
                         UID: t.id,
-                        BLUEPRINT: t.source.bp,
+                        BLUEPRINT: t.source.text,
                         ITEM_TICKS: t.recordItems ? t.tickInterval : null,
                         ELEC_TICKS: t.recordElectric ? t.tickInterval : null,
                         CIRC_TICKS: t.recordCircuits ? t.tickInterval : null,
                         POLL_TICKS: t.recordPollution ? t.tickInterval : null,
                         BOTS: t.initialBots,
                     });
-                    // #TODO NEED TO GET THE MODLIST EXTRACTED FROM A BLUEPRINT!
                 }
-                else if (t.source.type == 'savegame') {
+                else if (t.source.variant == 'savegame') {
                     // 1. copy the save to the saves folder renaming it as the Trial ID
                     // 2. delete trial ID folder in 'saves' if it exists (NOT .zip)
                     // 3. Extract the save file to a folder of the same name
                     // copy savegame.lua
                     // modify control.lua
                     // copy the original save to the saves folder, renaming it as the trial ID
-                    Logging_1.Logging.log('info', `Copying save ${t.source.savePath} to ${t.id}.zip`);
-                    yield fs_extra_1.default.copyFile(t.source.savePath, path_1.default.join(Factory.factoryDataPath, 'saves', t.id + '.zip'));
+                    Logging_1.Logging.log('info', `Copying save ${t.source.text} to ${t.id}.zip`);
+                    yield fs_extra_1.default.copyFile(t.source.text, path_1.default.join(Factory.factoryDataPath, 'saves', t.id + '.zip'));
                     // delete trial ID folder in 'saves' if it exists
                     Logging_1.Logging.log('info', `Deleting existing save folder ${t.id} if present`);
                     yield fs_extra_1.default.remove(path_1.default.join(Factory.factoryDataPath, 'saves', t.id));
                     // extract save file
                     Logging_1.Logging.log('info', `Extracting save file ${t.id}.zip to ${path_1.default.join(Factory.factoryDataPath, 'saves', t.id)}`);
-                    yield (0, decompress_1.default)(path_1.default.join(Factory.factoryDataPath, 'saves', t.id + '.zip'), path_1.default.join(Factory.factoryDataPath, 'saves'));
+                    let results = yield (0, decompress_1.default)(path_1.default.join(Factory.factoryDataPath, 'saves', t.id + '.zip'), path_1.default.join(Factory.factoryDataPath, 'saves'));
+                    // rename extracted folder to trial ID
+                    let fn = results[0].path.substring(0, results[0].path.indexOf('/'));
+                    fs_extra_1.default.rename(path_1.default.join(Factory.factoryDataPath, 'saves', fn), path_1.default.join(Factory.factoryDataPath, 'saves', t.id));
                     // copy savegame.lua
                     Logging_1.Logging.log('info', `Copying savegame.lua to ${path_1.default.join(Factory.factoryDataPath, 'saves', t.id)}`);
                     yield fs_extra_1.default.copyFile(path_1.default.join(__dirname, '../', '../', 'factory', 'savegame.lua'), path_1.default.join(Factory.factoryDataPath, 'saves', t.id, 'savegame.lua'));
+                    // MODIFY savegame.lua with our trial changes
+                    // now, we need to modify the sandbox.lua file with our parameters
+                    yield Factory.writeKeyValuesToLuaFile(path_1.default.join(Factory.factoryDataPath, 'saves', t.id, 'savegame.lua'), {
+                        UID: t.id,
+                        ITEM_TICKS: t.recordItems ? t.tickInterval : null,
+                        ELEC_TICKS: t.recordElectric ? t.tickInterval : null,
+                        CIRC_TICKS: t.recordCircuits ? t.tickInterval : null,
+                        POLL_TICKS: t.recordPollution ? t.tickInterval : null,
+                        BOTS: t.initialBots,
+                    });
                     // modify control.lua
                     Logging_1.Logging.log('info', `Modifying control.lua to include savegame.lua`);
                     let controlLua = yield fs_extra_1.default.readFile(path_1.default.join(Factory.factoryDataPath, 'saves', t.id, 'control.lua'), { encoding: 'utf8' });
                     controlLua += 'handler.add_lib(require("savegame"))';
                     yield fs_extra_1.default.writeFile(path_1.default.join(Factory.factoryDataPath, 'saves', t.id, 'control.lua'), controlLua, { encoding: 'utf8' });
-                    // #todo NEED TO GET THE MODLIST EXTRACTED FROM A SAVEGAME!
                 }
                 else
                     throw new Error('Cannot prepare trial! Unknown source type provided');
@@ -174,7 +187,7 @@ class Factory {
                 yield Factory.prepareTrial(t);
             // we do the executable check inside IF so that savegames don't throw an error
             // savegames as a whole dont need to be compiled, so we just skip this step
-            if (t.source.type == 'blueprint') {
+            if (t.source.variant == 'blueprint') {
                 if (Factory.isTrialRunning)
                     throw new Error('Cannot compile trial! Factorio executable is already running');
                 Factory.isTrialRunning = true;
@@ -252,7 +265,10 @@ class Factory {
                 // Record our end parsing time.
                 let nd = (new Date()).getTime();
                 // Grab the text logs that prefix our raw system data
-                t.textLogs = r.execResults.substring(0, idxA).split('\n');
+                if (idxA != -1)
+                    t.textLogs = r.execResults.substring(0, idxA).split('\n');
+                else
+                    t.textLogs = r.execResults.substring(0, r.execResults.indexOf('Running update') - 1).split('\n');
                 // We parse this way later in the analysis stage. We just do enough to split out textlogs and metadata
                 t.rawSystemText = perfSubstr;
                 t.metadata = {
@@ -277,7 +293,7 @@ class Factory {
             t.setStage('ran');
         });
     }
-    static analyzeTrial(t) {
+    static analyzeTrial(t, saveToDB = false) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!(t === null || t === void 0 ? void 0 : t.id))
                 throw new Error('Cannot analyze trial! ID is missing, or trial is null');
@@ -289,35 +305,38 @@ class Factory {
                 let rObj = {};
                 if (t.recordItems) {
                     Logging_1.Logging.log('info', { message: `Analyzing item data for trial ${t.id}` });
-                    let itemDataset = new Dataset_1.ItemDataset(t, path_1.default.join(Factory.scriptOutputPath, 'data', t.dataFiles.items));
-                    yield itemDataset.parseData();
-                    rObj.items = itemDataset;
+                    rObj.itemRecords = yield Factory.parseItemDataFile(path_1.default.join(Factory.scriptOutputPath, 'data', t.dataFiles.items), t);
+                    if (saveToDB && t instanceof SavedTrial_1.SavedTrial)
+                        yield FactoryDatabase_1.FactoryDatabase.insertFlowRecords(rObj.itemRecords);
                 }
-                if (t.recordElectric) {
-                    Logging_1.Logging.log('info', { message: `Analyzing electric data for trial ${t.id}` });
-                    let electricDataset = new Dataset_1.ElectricDataset(t, path_1.default.join(Factory.scriptOutputPath, 'data', t.dataFiles.electric));
-                    yield electricDataset.parseData();
+                /*if (t.recordElectric) {
+                    Logging.log('info', {message: `Analyzing electric data for trial ${t.id}`});
+                    let electricDataset = new ElectricDataset(t, path.join(Factory.scriptOutputPath, 'data', t.dataFiles.electric))
+                    await electricDataset.parseData()
                     rObj.electric = electricDataset;
                 }
                 if (t.recordCircuits) {
-                    Logging_1.Logging.log('info', { message: `Analyzing circuit data for trial ${t.id}` });
-                    let circuitDataset = new Dataset_1.CircuitDataset(t, path_1.default.join(Factory.scriptOutputPath, 'data', t.dataFiles.circuits));
-                    yield circuitDataset.parseData();
+                    Logging.log('info', {message: `Analyzing circuit data for trial ${t.id}`});
+                    let circuitDataset = new CircuitDataset(t, path.join(Factory.scriptOutputPath, 'data', t.dataFiles.circuits))
+                    await circuitDataset.parseData()
                     rObj.circuits = circuitDataset;
-                }
+                }*/
                 if (t.recordPollution) {
                     Logging_1.Logging.log('info', { message: `Analyzing pollution data for trial ${t.id}` });
-                    let pollutionDataset = new Dataset_1.PollutionDataset(t, path_1.default.join(Factory.scriptOutputPath, 'data', t.dataFiles.pollution));
-                    yield pollutionDataset.parseData();
-                    rObj.pollution = pollutionDataset;
+                    rObj.pollutionRecords = yield Factory.parsePollutionDataFile(path_1.default.join(Factory.scriptOutputPath, 'data', t.dataFiles.pollution), t);
+                    if (saveToDB && t instanceof SavedTrial_1.SavedTrial)
+                        yield FactoryDatabase_1.FactoryDatabase.insertPollutionRecords(rObj.pollutionRecords);
                 }
                 if (t.recordSystem) {
                     Logging_1.Logging.log('info', { message: `Analyzing system data for trial ${t.id}` });
-                    let systemDataset = new Dataset_1.SystemDataset(t, t.rawSystemText);
-                    yield systemDataset.parseData();
-                    rObj.system = systemDataset;
+                    rObj.systemRecords = Factory.parseSystemData(t.rawSystemText, t);
+                    if (saveToDB && t instanceof SavedTrial_1.SavedTrial)
+                        yield FactoryDatabase_1.FactoryDatabase.insertSystemRecords(rObj.systemRecords);
                 }
                 yield Factory.deleteScriptOutputFiles(t);
+                yield Factory.deleteSaveFileClutter(t);
+                if (saveToDB && t instanceof SavedTrial_1.SavedTrial)
+                    yield FactoryDatabase_1.FactoryDatabase.saveTrial(t, true);
                 t.setStage('analyzed');
                 return rObj;
             }
@@ -327,6 +346,261 @@ class Factory {
                 throw e;
             }
         });
+    }
+    static parseItemDataFile(filepath, trial) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let raw = yield fs_extra_1.default.readFile(filepath, 'utf-8');
+            let results = [];
+            let lines = raw.split('\n');
+            for (let i = 0; i < lines.length - 1; i++) {
+                let l = lines[i];
+                // keep an active map of all items in this tick, adding information as needed
+                let itemMap = {};
+                // Parse line information into temp object
+                let lineParsed = JSON.parse(l);
+                // for each key in cons, upsert data to itemMap
+                let co = Object.keys(lineParsed.cons);
+                for (let c of co) {
+                    // the item record if it exists
+                    let ir = itemMap[c];
+                    if (ir) {
+                        // Update the cons value, as there is nothing else it can be.
+                        ir.cons = lineParsed.cons[c];
+                    }
+                    else {
+                        // No object record exists yet - create and set it
+                        itemMap[c] = {
+                            label: c,
+                            tick: (i + 1) * trial.tickInterval,
+                            cons: lineParsed.cons[c],
+                            prod: 0,
+                        };
+                    }
+                }
+                let po = Object.keys(lineParsed.prod);
+                for (let p of po) {
+                    // the item record if it exists
+                    let ir = itemMap[p];
+                    if (ir) {
+                        // Update the cons value, as there is nothing else it can be.
+                        ir.prod = lineParsed.prod[p];
+                    }
+                    else {
+                        // No object record exists yet - create and set it
+                        itemMap[p] = {
+                            label: p,
+                            tick: (i + 1) * trial.tickInterval,
+                            cons: 0,
+                            prod: lineParsed.prod[p],
+                        };
+                    }
+                }
+                // Now that the itemMap is populated, push all items to the results array for this tick. Convert all keys to an array, grabbing values from the map in a loop
+                let itemKeys = Object.keys(itemMap);
+                for (let ik of itemKeys) {
+                    results.push(itemMap[ik]);
+                }
+            }
+            // for each item, calculate the average and total for  each item
+            let g = lodash_1.default.groupBy(results, 'label');
+            let kList = Object.keys(g);
+            let metadata = {
+                avg: {},
+                total: {}
+            };
+            for (let i = 0; i < kList.length; i++) {
+                // sum / length (in minutes)
+                let itemData = g[kList[i]];
+                let secondsLength = trial.length / (60 * 60);
+                let totalCons = lodash_1.default.sumBy(itemData, 'cons');
+                let totalProd = lodash_1.default.sumBy(itemData, 'prod');
+                metadata.avg[kList[i]] = {
+                    cons: totalCons / secondsLength,
+                    prod: totalProd / secondsLength
+                };
+                metadata.total[kList[i]] = {
+                    cons: totalCons,
+                    prod: totalProd
+                };
+            }
+            // lastly, if  our trial is a 'SavedTrial' type, we will make sure we convert all these records into SavedFlowRecords
+            if (trial instanceof SavedTrial_1.SavedTrial) {
+                results = yield SavedDataset_1.SavedFlowRecord.fromRecords(results, trial.id);
+            }
+            trial.itemMetadata = metadata;
+            return results;
+        });
+    }
+    static parseElectricDataFile(filepath, trial) {
+        return __awaiter(this, void 0, void 0, function* () {
+            throw new Error('Electric data not implemented yet - need to analyze data output as it doesnt follow in-game values');
+        });
+    }
+    static parseCircuitDataFile(filepath, trial) {
+        return __awaiter(this, void 0, void 0, function* () {
+            throw new Error('Circuit data not implemented yet - need to ensure accuracy and prepare for future circuit changes');
+        });
+    }
+    static parsePollutionDataFile(filepath, trial) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let raw = yield fs_extra_1.default.readFile(filepath, 'utf-8');
+            let results = [];
+            let lines = raw.split('\n');
+            // Now, need to sort through the list of lines and parse out the data
+            for (let i = 0; i < lines.length - 1; i++) {
+                let l = lines[i];
+                // each line is a object with 1 field - pollution. This is a float
+                let lData = JSON.parse(l);
+                results.push({
+                    tick: (i + 1) * trial.tickInterval,
+                    count: lData.pollution
+                });
+            }
+            if (trial instanceof SavedTrial_1.SavedTrial) {
+                results = SavedDataset_1.SavedPollutionRecord.fromRecords(results, trial.id);
+            }
+            return results;
+        });
+    }
+    static parseSystemData(raw, trial) {
+        let lines = raw.split('\n');
+        // First line is headers, so we remove it
+        lines.shift();
+        // Now we have an array of strings, each string being a line of csv data
+        let results = [];
+        let currentTickItem = null;
+        let currentSetCount = 0;
+        let runningTimestamp = 0;
+        for (let l of lines) {
+            // Split by commas
+            let data = l.split(',');
+            if (!currentTickItem) {
+                currentSetCount = 1;
+                currentTickItem = {
+                    tick: Number.parseInt(data[0].substring(1)),
+                    timestamp: Number.parseInt(data[1]),
+                    wholeUpdate: Number.parseInt(data[2]),
+                    latencyUpdate: Number.parseInt(data[3]),
+                    gameUpdate: Number.parseInt(data[4]),
+                    circuitNetworkUpdate: Number.parseInt(data[5]),
+                    transportLinesUpdate: Number.parseInt(data[6]),
+                    fluidsUpdate: Number.parseInt(data[7]),
+                    heatManagerUpdate: Number.parseInt(data[8]),
+                    entityUpdate: Number.parseInt(data[9]),
+                    particleUpdate: Number.parseInt(data[10]),
+                    mapGenerator: Number.parseInt(data[11]),
+                    mapGeneratorBasicTilesSupportCompute: Number.parseInt(data[12]),
+                    mapGeneratorBasicTilesSupportApply: Number.parseInt(data[13]),
+                    mapGeneratorCorrectedTilesPrepare: Number.parseInt(data[14]),
+                    mapGeneratorCorrectedTilesCompute: Number.parseInt(data[15]),
+                    mapGeneratorCorrectedTilesApply: Number.parseInt(data[16]),
+                    mapGeneratorVariations: Number.parseInt(data[17]),
+                    mapGeneratorEntitiesPrepare: Number.parseInt(data[18]),
+                    mapGeneratorEntitiesCompute: Number.parseInt(data[19]),
+                    mapGeneratorEntitiesApply: Number.parseInt(data[20]),
+                    crcComputation: Number.parseInt(data[21]),
+                    electricNetworkUpdate: Number.parseInt(data[22]),
+                    logisticManagerUpdate: Number.parseInt(data[23]),
+                    constructionManagerUpdate: Number.parseInt(data[24]),
+                    pathFinder: Number.parseInt(data[25]),
+                    trains: Number.parseInt(data[26]),
+                    trainPathFinder: Number.parseInt(data[27]),
+                    commander: Number.parseInt(data[28]),
+                    chartRefresh: Number.parseInt(data[29]),
+                    luaGarbageIncremental: Number.parseInt(data[30]),
+                    chartUpdate: Number.parseInt(data[31]),
+                    scriptUpdate: Number.parseInt(data[32])
+                };
+            }
+            else {
+                // add to the tick item, then evaluate if we need to push and reset it (if we are at tickInterval count)
+                // We add 1 to the tick because it is representative of the 'last 300 ticks'. So if we state 300, we are
+                // NOT including tick 300. therefore, it can show as 300 for data organization and matching, but tick 300
+                // goes towards the next interval mark, at 600.
+                currentTickItem.tick = Number.parseInt(data[0].substring(1)) + 1;
+                currentTickItem.timestamp = Number.parseInt(data[1]);
+                currentTickItem.wholeUpdate += Number.parseInt(data[2]);
+                currentTickItem.latencyUpdate += Number.parseInt(data[3]);
+                currentTickItem.gameUpdate += Number.parseInt(data[4]);
+                currentTickItem.circuitNetworkUpdate += Number.parseInt(data[5]);
+                currentTickItem.transportLinesUpdate += Number.parseInt(data[6]);
+                currentTickItem.fluidsUpdate += Number.parseInt(data[7]);
+                currentTickItem.heatManagerUpdate += Number.parseInt(data[8]);
+                currentTickItem.entityUpdate += Number.parseInt(data[9]);
+                currentTickItem.particleUpdate += Number.parseInt(data[10]);
+                currentTickItem.mapGenerator += Number.parseInt(data[11]);
+                currentTickItem.mapGeneratorBasicTilesSupportCompute += Number.parseInt(data[12]);
+                currentTickItem.mapGeneratorBasicTilesSupportApply += Number.parseInt(data[13]);
+                currentTickItem.mapGeneratorCorrectedTilesPrepare += Number.parseInt(data[14]);
+                currentTickItem.mapGeneratorCorrectedTilesCompute += Number.parseInt(data[15]);
+                currentTickItem.mapGeneratorCorrectedTilesApply += Number.parseInt(data[16]);
+                currentTickItem.mapGeneratorVariations += Number.parseInt(data[17]);
+                currentTickItem.mapGeneratorEntitiesPrepare += Number.parseInt(data[18]);
+                currentTickItem.mapGeneratorEntitiesCompute += Number.parseInt(data[19]);
+                currentTickItem.mapGeneratorEntitiesApply += Number.parseInt(data[20]);
+                currentTickItem.crcComputation += Number.parseInt(data[21]);
+                currentTickItem.electricNetworkUpdate += Number.parseInt(data[22]);
+                currentTickItem.logisticManagerUpdate += Number.parseInt(data[23]);
+                currentTickItem.constructionManagerUpdate += Number.parseInt(data[24]);
+                currentTickItem.pathFinder += Number.parseInt(data[25]);
+                currentTickItem.trains += Number.parseInt(data[26]);
+                currentTickItem.trainPathFinder += Number.parseInt(data[27]);
+                currentTickItem.commander += Number.parseInt(data[28]);
+                currentTickItem.chartRefresh += Number.parseInt(data[29]);
+                currentTickItem.luaGarbageIncremental += Number.parseInt(data[30]);
+                currentTickItem.chartUpdate += Number.parseInt(data[31]);
+                currentTickItem.scriptUpdate += Number.parseInt(data[32]);
+                currentSetCount += 1;
+            }
+            if (currentSetCount >= trial.tickInterval) {
+                // Cut nanoseconds down to milliseconds so its more comprehensive
+                // Timestamp is a 'always increasing' field, so instead we just want to record the differences between points.
+                // This gives much more useful information
+                let tb = currentTickItem.timestamp;
+                currentTickItem.timestamp = (currentTickItem.timestamp - runningTimestamp) / 1000000;
+                runningTimestamp = tb;
+                currentTickItem.wholeUpdate = currentTickItem.wholeUpdate / 1000000;
+                currentTickItem.latencyUpdate = currentTickItem.latencyUpdate / 1000000;
+                currentTickItem.gameUpdate = currentTickItem.gameUpdate / 1000000;
+                currentTickItem.circuitNetworkUpdate = currentTickItem.circuitNetworkUpdate / 1000000;
+                currentTickItem.transportLinesUpdate = currentTickItem.transportLinesUpdate / 1000000;
+                currentTickItem.fluidsUpdate = currentTickItem.fluidsUpdate / 1000000;
+                currentTickItem.heatManagerUpdate = currentTickItem.heatManagerUpdate / 1000000;
+                currentTickItem.entityUpdate = currentTickItem.entityUpdate / 1000000;
+                currentTickItem.particleUpdate = currentTickItem.particleUpdate / 1000000;
+                currentTickItem.mapGenerator = currentTickItem.mapGenerator / 1000000;
+                currentTickItem.mapGeneratorBasicTilesSupportCompute = currentTickItem.mapGeneratorBasicTilesSupportCompute / 1000000;
+                currentTickItem.mapGeneratorBasicTilesSupportApply = currentTickItem.mapGeneratorBasicTilesSupportApply / 1000000;
+                currentTickItem.mapGeneratorCorrectedTilesPrepare = currentTickItem.mapGeneratorCorrectedTilesPrepare / 1000000;
+                currentTickItem.mapGeneratorCorrectedTilesCompute = currentTickItem.mapGeneratorCorrectedTilesCompute / 1000000;
+                currentTickItem.mapGeneratorCorrectedTilesApply = currentTickItem.mapGeneratorCorrectedTilesApply / 1000000;
+                currentTickItem.mapGeneratorVariations = currentTickItem.mapGeneratorVariations / 1000000;
+                currentTickItem.mapGeneratorEntitiesPrepare = currentTickItem.mapGeneratorEntitiesPrepare / 1000000;
+                currentTickItem.mapGeneratorEntitiesCompute = currentTickItem.mapGeneratorEntitiesCompute / 1000000;
+                currentTickItem.mapGeneratorEntitiesApply = currentTickItem.mapGeneratorEntitiesApply / 1000000;
+                currentTickItem.crcComputation = currentTickItem.crcComputation / 1000000;
+                currentTickItem.electricNetworkUpdate = currentTickItem.electricNetworkUpdate / 1000000;
+                currentTickItem.logisticManagerUpdate = currentTickItem.logisticManagerUpdate / 1000000;
+                currentTickItem.constructionManagerUpdate = currentTickItem.constructionManagerUpdate / 1000000;
+                currentTickItem.pathFinder = currentTickItem.pathFinder / 1000000;
+                currentTickItem.trains = currentTickItem.trains / 1000000;
+                currentTickItem.trainPathFinder = currentTickItem.trainPathFinder / 1000000;
+                currentTickItem.commander = currentTickItem.commander / 1000000;
+                currentTickItem.chartRefresh = currentTickItem.chartRefresh / 1000000;
+                currentTickItem.luaGarbageIncremental = currentTickItem.luaGarbageIncremental / 1000000;
+                currentTickItem.chartUpdate = currentTickItem.chartUpdate / 1000000;
+                currentTickItem.scriptUpdate = currentTickItem.scriptUpdate / 1000000;
+                // Push the current tick item, then reset it.
+                results.push(currentTickItem);
+                currentTickItem = null;
+                currentSetCount = 0;
+            }
+        }
+        // what do we need for metadata? Include here
+        if (trial instanceof SavedTrial_1.SavedTrial) {
+            results = SavedDataset_1.SavedSystemRecord.fromRecords(results, trial.id);
+        }
+        return results;
     }
     static get modsPath() {
         return path_1.default.join(this.factoryDataPath, 'mods');
@@ -364,7 +638,12 @@ class Factory {
         return __awaiter(this, void 0, void 0, function* () {
             // Phase 1 - start the logger and other random system packages
             const logFormat = winston_1.default.format.printf(function (info) {
-                return `${info.timestamp}-${info.level}: ${Object.keys(info).length <= 3 ? info.message : JSON.stringify(info, null, 4)}`;
+                try {
+                    return `${info.timestamp}-${info.level}: ${Object.keys(info).length <= 3 ? info.message : JSON.stringify(info, null, 4)}`;
+                }
+                catch (e) {
+                    return "LOGERROR";
+                }
             });
             if (hideConsole === true) {
                 Logging_1.Logging.startLogger([
@@ -413,6 +692,22 @@ class Factory {
             }
         });
     }
+    static deleteSaveFileClutter(trial) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // deletes all raw files associated with this trial in the script-output directory
+            let trialId = typeof trial === 'string' ? trial : trial.id;
+            try {
+                yield Promise.allSettled([
+                    fs_extra_1.default.remove(path_1.default.join(Factory.factoryDataPath, 'saves', `${trialId}.zip`)),
+                    fs_extra_1.default.remove(path_1.default.join(Factory.factoryDataPath, 'saves', `${trialId}`)),
+                    fs_extra_1.default.remove(path_1.default.join(Factory.factoryDataPath, 'scenarios', `${trialId}`)),
+                ]);
+            }
+            catch (e) {
+                Logging_1.Logging.log('error', { message: `Failed to delete save files for trial ${trialId}`, error: e });
+            }
+        });
+    }
     static applyModsOfSource(source) {
         return __awaiter(this, void 0, void 0, function* () {
             /*
@@ -422,9 +717,9 @@ class Factory {
             yield Factory.clearActiveMods();
             if (source.modList && source.modList.mods.length > 0) {
                 // we now need to symlink all the mods first
-                yield Factory.symlinkModFiles(source.modList.factorioModFiles);
+                yield Factory.symlinkModFiles(source.modList.modFileNames);
                 // if it exists, symlink the mod-settings.dat file
-                if (source.modList.settingsFile)
+                if (source.modList.settingsFile && !(yield fs_extra_1.default.exists(path_1.default.join(Factory.factoryDataPath, 'mod-settings.dat'))))
                     yield fs_extra_1.default.symlink(source.modList.settingsFile, path_1.default.join(Factory.factoryDataPath, 'mod-settings.dat'));
                 // then, we need to write the mod-list.json file. Factorio uses this to load the actual list of mods
                 yield source.modList.writeModListFile(path_1.default.join(Factory.modsPath, 'mod-list.json'));
@@ -471,6 +766,7 @@ class Factory {
                 fs_extra_1.default.ensureDir(path_1.default.join(params.dataDir, 'mods')),
                 fs_extra_1.default.ensureDir(path_1.default.join(params.dataDir, 'scenarios')),
                 fs_extra_1.default.ensureDir(path_1.default.join(params.dataDir, 'saves')),
+                fs_extra_1.default.ensureDir(path_1.default.join(params.dataDir, 'saves-upload')),
                 fs_extra_1.default.ensureDir(path_1.default.join(params.dataDir, 'script-output')),
                 fs_extra_1.default.ensureDir(path_1.default.join(params.dataDir, 'downloads')),
                 fs_extra_1.default.ensureDir(path_1.default.join(params.dataDir, 'mods-cache'))
@@ -605,13 +901,22 @@ class Factory {
                 yield (0, decompress_1.default)(filepath, Factory.factoryInstallPath);
             }
             else {
-                yield (0, decompress_1.default)(filepath, Factory.factoryInstallPath, {
-                    plugins: [(0, decompress_tarxz_1.default)()],
+                // decompress using TAR
+                yield new Promise((resolve, reject) => {
+                    (0, child_process_1.exec)(`tar -xf ${filepath} -C ${Factory.factoryInstallPath} --strip-components=1`, (error, stdout, stderr) => {
+                        if (error)
+                            reject(error);
+                        else
+                            resolve(stdout);
+                    });
+                });
+                /*await decompress(filepath, Factory.factoryInstallPath, {
+                    plugins: [decompressTarxz()],
                     map: file => {
-                        file.path = file.path.substring(9);
+                        file.path = file.path.substring(9)
                         return file;
                     }
-                });
+                });*/
             }
             yield Factory.verifyInstall();
         });
@@ -653,18 +958,24 @@ class Factory {
             yield fs_extra_1.default.emptyDir(path_1.default.join(Factory.factoryDataPath, 'mods'));
         });
     }
-    // returns true if already cached, false if it was downloaded then cached
+    // returns cached version of given mod
     static cacheMod(mod) {
         return __awaiter(this, void 0, void 0, function* () {
+            let name = mod.substring(0, mod.lastIndexOf('_'));
+            let v;
+            if (mod.endsWith('latest.zip') || mod.endsWith('latest')) {
+                // get most recent version first
+                v = yield FactorioApi_1.FactorioApi.getLatestModVersion(mod.substring(0, mod.lastIndexOf('_')));
+            }
+            else {
+                v = mod.substring(mod.lastIndexOf('_') + 1, mod.indexOf('.zip'));
+            }
             // first, check if this mod is already cached
-            if (Factory.modCache.has(mod.file))
-                return true;
-            // if not, download it
-            if (mod.version == 'latest')
-                mod.version = yield FactorioApi_1.FactorioApi.getLatestModVersion(mod.name);
-            yield FactorioApi_1.FactorioApi.downloadMod(mod.name, mod.version);
-            Factory.modCache.add(mod.file);
-            return false;
+            if (Factory.modCache.has(`${name}_${v}.zip`))
+                return v;
+            yield FactorioApi_1.FactorioApi.downloadMod(name, v);
+            Factory.modCache.add(`${name}_${v}.zip`);
+            return v;
         });
     }
     /*
@@ -676,7 +987,9 @@ class Factory {
             // We need to make sure all listed mods are present in the mods-cache
             // if a version does not exist in the name, we will assume latest version and append it to the name
             for (let i = 0; i < mods.mods.length; i++) {
-                yield Factory.cacheMod(mods.mods[i]);
+                let v = yield Factory.cacheMod(mods.mods[i]);
+                if (mods.mods[i].endsWith('_latest.zip'))
+                    mods.mods[i] = `${mods.mods[i].substring(0, mods.mods[i].lastIndexOf('_'))}_${v}.zip`;
             }
             //await fs.ensureSymlink('','', 'file')
         });
@@ -728,8 +1041,8 @@ class Factory {
                 });
             }
             catch (e) {
-                Logging_1.Logging.log('error', `Error running factorio executable - ${e.message}`);
-                throw new Error(`Error running factorio executable - ${e.message}`);
+                Logging_1.Logging.log('error', `Error running factorio executable - ${execResults}}`);
+                throw new Error(`Error running factorio executable - ${e}`);
             }
             this.factorioRunning = false;
             let end = new Date();

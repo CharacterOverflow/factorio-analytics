@@ -1,49 +1,45 @@
 import fs from "fs-extra";
+import crypto, {randomUUID} from "crypto";
+import {SavedModList} from "./database/SavedModList";
 
-export class Mod {
-
-    name: string;
-    version: string;
-
-    get file(): string {
-        return this.name + '_' + this.version + '.zip'
-    }
-
-    constructor(raw: string) {
-
-        if (!raw)
-            return;
-
-        this.name = raw.endsWith('.zip') ? raw.substring(0, raw.length - 4) : raw;
-
-        // Find the first '.', which will help is identify the version number and string format
-        let firstDotIndex = this.name.indexOf('.')
-        let lastUnderscoreIndex = this.name.lastIndexOf('_');
-        if (firstDotIndex === -1 || lastUnderscoreIndex === -1) {
-            // no version, just mod name itself
-            // Grab latest version from the API directly - THEN check the cache. We do this to check for mod updates
-            this.version = 'latest'
-        } else {
-            // mod version, we can assume take LAST '_' until the end as version
-            this.version = this.name.substring(lastUnderscoreIndex + 1);
-        }
-    }
-
+export interface IModListParams {
+    name?: string
+    desc?: string
+    mods?: string[]
+    settingsFile?: string
 }
 
 export class ModList {
 
+    // id is determined by the hash of the mods array
+    id?: string;
+
     name?: string;
     desc?: string;
 
-    mods: Mod[] = [];
+    mods: string[] = [];
 
     // OPTIONAL - if set, points to the absolute path of a mod-settings.dat file. Is copied whenever this modlist is applied
     settingsFile?: string;
 
-    get factorioModFiles() {
+    static async fromModListFile(filepath: string): Promise<ModList> {
+        let fd = await fs.readJSON(filepath)
+        return new ModList({
+            name: 'New Modlist',
+            desc: 'Created from mod-list.json',
+            mods: fd.mods.filter((m) => {
+                return m.name !== 'base'
+            }).map((m: any) => {
+                return m.name
+            })
+        })
+    }
+    get modFileNames() {
         return this.mods.map((m) => {
-            return m.file
+          if (m.endsWith('.zip'))
+              return m
+            else
+                return m + '.zip'
         })
     }
 
@@ -51,7 +47,7 @@ export class ModList {
         return {
             mods: this.mods.map((m) => {
                 return {
-                    name: m.name,
+                    name: m.split('_')[0],
                     enabled: true
                 }
             })
@@ -65,18 +61,32 @@ export class ModList {
 
     // takes in an array of mod names, supports many naming types
     // converts name into a name+version object, if no version is specified it will be queried from the API, and the latest version will be locked in
-    constructor(mods: string[], name?: string, desc?: string) {
-        if (!mods)
+    constructor(params: IModListParams) {
+        if (!params)
             return;
 
-        if (name)
-            this.name = name;
+        this.id = randomUUID();
+        this.name = params.name;
+        this.desc = params.desc;
+        this.settingsFile = params.settingsFile;
 
-        if (desc)
-            this.desc = desc;
+        if (!params.mods)
+            params.mods = []
+        else if (params.mods.length > 0) {
+            for (let i = 0; i < params.mods.length; i++) {
+                let mod = params.mods[i]
+                mod = mod.endsWith('.zip') ? mod.substring(0, mod.length - 4) : mod;
 
-        for (let i = 0; i < mods.length; i++) {
-            this.mods.push(new Mod(mods[i]));
+                // Find the first '.', which will help is identify the version number and string format
+                let firstDotIndex = this.name.indexOf('.')
+                let lastUnderscoreIndex = this.name.lastIndexOf('_');
+                if (firstDotIndex === -1 || lastUnderscoreIndex === -1) {
+                    // no version, just mod name itself
+                    // set to latest. When mod caching comes around to check it, will grab latest version and change this
+                    mod = mod + '_latest.zip'
+                }
+                this.mods.push(mod);
+            }
         }
     }
 

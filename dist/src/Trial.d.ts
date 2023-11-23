@@ -1,6 +1,6 @@
-import { TrialSource } from "./TrialSource";
+import { Source } from "./Source";
 export interface ITrialParams {
-    source: TrialSource | string;
+    source: Source | string;
     length?: number;
     tickInterval?: number;
     initialBots?: number;
@@ -9,6 +9,8 @@ export interface ITrialParams {
     recordCircuits?: boolean;
     recordPollution?: boolean;
     recordSystem?: boolean;
+    name?: string;
+    desc?: string;
 }
 export interface ITrialDataFiles {
     items?: string;
@@ -20,7 +22,7 @@ export type TTrialStages = 'new' | 'preparing' | 'prepared' | 'compiling' | 'com
 export declare class Trial {
     id: string;
     stage: TTrialStages;
-    source: TrialSource;
+    source: Source;
     length: number;
     tickInterval: number;
     initialBots?: number;
@@ -29,14 +31,19 @@ export declare class Trial {
     recordCircuits: boolean;
     recordPollution: boolean;
     recordSystem: boolean;
+    name?: string;
+    desc?: string;
+    createdAt: Date;
     startedRunAt: Date;
     startedAt: Date;
     endedAt: Date;
     textLogs: string[];
     rawSystemText: string;
     metadata: any;
+    itemMetadata: any;
+    pollutionMetadata: any;
     get dataFiles(): ITrialDataFiles;
-    constructor(params: ITrialParams);
+    constructor(params?: ITrialParams);
     get ready(): Promise<boolean>;
     setStage(stage: TTrialStages): void;
 }

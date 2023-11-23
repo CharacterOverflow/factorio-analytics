@@ -1,4 +1,3 @@
-"use strict";
 /*
 * Blueprint-Scripts CLI - runTrial.(ts/js)
 *
@@ -9,49 +8,24 @@
 * Data written out will be be directed to a JSON file by default, but if CSV is desired use --csv (or -c) flag
 *
 * */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const dotenv = __importStar(require("dotenv"));
-const path_1 = __importDefault(require("path"));
-const Factory_1 = require("../src/Factory");
-const FactoryDatabase_1 = require("../src/FactoryDatabase");
-const FactoryBackend_1 = require("../src/FactoryBackend");
+
+import * as dotenv from 'dotenv';
+import {Trial} from "../src/Trial";
+import * as fs from "fs";
+import path from "path";
+import {Factory} from "../src/Factory";
+import {ModList} from "../src/ModList";
+import {Source} from "../src/Source";
+import {FactoryDatabase} from "../src/FactoryDatabase";
+import {SavedTrial} from "../src/database/SavedTrial";
+import {SavedSource} from "../src/database/SavedSource";
+import {FactoryBackend} from "../src/FactoryBackend";
+import {SavedModList} from "../src/database/SavedModList";
+
 dotenv.config();
-const bpFile = path_1.default.join(process.cwd(), 'factory/examples/45spm_base.bp');
+
+const saveFile = '/home/overflow/Apps/Factorio_SEServer/factorio/saves/SE_K2_E62.zip'
+
 /*
 * CREATE A WAY TO START FACTORY RUNNER WITHOUT INDIVIDUAL VALUES - RATHER, A CONFIG FILE
 * specify path, or leave default for 'factory.config.json'
@@ -64,44 +38,53 @@ const bpFile = path_1.default.join(process.cwd(), 'factory/examples/45spm_base.b
 * otherwise, API can go from DB mostly and allow user to change things on the frontend
 *
 * */
-function main() {
-    return __awaiter(this, void 0, void 0, function* () {
-        console.log('SETUP DEBUG STAGE 1 COMPLETE');
-        yield Factory_1.Factory.initialize({
-            installDir: '/home/overflow/Apps/factorio_auto_v3',
-            hideConsole: false
-            // user info is provided auto-magically from .env
-        });
-        yield FactoryDatabase_1.FactoryDatabase.initialize();
-        yield FactoryBackend_1.FactoryBackend.startServer();
-        // lets try running a blueprint test
-        // let bp = fs.readFileSync(bpFile, 'utf8');
-        //
-        // let source = new SavedSource({
-        //     blueprint: bp,
-        //     name: '45spm_base',
-        // });
-        // let t = new SavedTrial({
-        //     source,
-        //     length: 7200,
-        //     tickInterval: 60,
-        //     initialBots: 200,
-        //     recordSystem: true,
-        //     recordCircuits: true,
-        //     recordPollution: true,
-        // })
-        //await t.ready
-        //await FactoryDatabase.saveTrial(t);
-        //let v = await FactoryDatabase.loadTrial(t.id);
-        //let results = await Factory.analyzeTrial(t, true);
-        //await FactoryDatabase.saveTrial(t, false)
-    });
+
+async function main() {
+    console.log('SETUP DEBUG STAGE 1 COMPLETE');
+
+    await Factory.initialize({
+        installDir: '/home/overflow/Apps/factorio_auto_v3',
+        hideConsole: false
+        // user info is provided auto-magically from .env
+    })
+    await FactoryDatabase.initialize()
+
+    let modlist = await ModList.fromModListFile('/home/overflow/.factorio/mods/mod-list.json')
+    let savedModList = new SavedModList(modlist)
+    savedModList.settingsFile = '/home/overflow/.factorio/mods/mod-settings.dat'
+    savedModList = await FactoryDatabase.saveModList(savedModList)
+
+    await Factory.cacheModList(savedModList)
+
+    let sesource = new SavedSource({
+        saveGamePath: saveFile,
+        name: 'SE_K2_E62',
+        modList: savedModList,
+    })
+    await sesource.ready
+    sesource = await FactoryDatabase.saveSource(sesource)
+
+    let st = new SavedTrial({
+        source: sesource,
+        length: 7200,
+        tickInterval: 60,
+        recordItems: true,
+        recordSystem: true,
+        name: 'K2_SE_TEST_1',
+        desc: 'Space exploration test 1  - just want to read some logs really'
+    })
+    let t = await FactoryDatabase.saveTrial(st)
+
+    let results = await Factory.analyzeTrial(t)
+    console.log(results)
 }
-main().then((t) => __awaiter(void 0, void 0, void 0, function* () {
+
+main().then(async (t) => {
+
     console.log('TRIAL RUN!');
-})).catch((e) => {
+}).catch((e) => {
     console.error(e);
-});
+})
 /*
 Factory.initialize({
     installDir: process.env.FACTORIO_INSTALL,
@@ -201,4 +184,3 @@ Factory.initialize({
     console.error(e);
 })
 */
-//# sourceMappingURL=debug.js.map

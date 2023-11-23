@@ -6,22 +6,21 @@ import winston from "winston";
 import path from "path";
 import fs from "fs-extra";
 import * as os from "os";
-import {FactorioApi} from "./api/FactorioApi";
+import {FactorioApi} from "./FactorioApi";
 import decompress from "decompress";
-import decompressTarxz from "decompress-tarxz";
-import {spawn} from "child_process";
+import {exec, spawn} from "child_process";
 import {Trial} from "./Trial";
 import * as process from "process";
-import {SourceBlueprint, SourceSaveGame, TrialSource} from "./TrialSource";
-import {Mod, ModList} from "./ModList";
+import {ModList} from "./ModList";
 import {
-    CircuitDataset,
-    ElectricDataset,
-    IDatasetCombinedResults,
-    ItemDataset,
-    PollutionDataset,
-    SystemDataset
+    IDatasetCombinedResults, IGameFlowTick, IGamePollutionTick, ISystemTick,
 } from "./Dataset";
+import _ from "lodash";
+import {Source} from "./Source";
+import {SavedTrial} from "./database/SavedTrial";
+import {SavedFlowRecord, SavedPollutionRecord, SavedSystemRecord} from "./database/SavedDataset";
+import {FactoryDatabase} from "./FactoryDatabase";
+import {FactoryBackend} from "./FactoryBackend";
 
 /*
 * Listing out the various ENV settings that can be set...
@@ -126,7 +125,7 @@ export class Factory {
 
         try {
 
-            if (t.source.type == 'blueprint') {
+            if (t.source.variant == 'blueprint') {
 
                 // COpy our scenario source to scenarios, as we need it for blueprint running
                 let trialFolder = await Factory.copyScenarioSourceToFolder(t.id);
@@ -134,18 +133,14 @@ export class Factory {
                 // now, we need to modify the sandbox.lua file with our parameters
                 await Factory.writeKeyValuesToLuaFile(path.join(trialFolder, 'sandbox.lua'), {
                     UID: t.id,
-                    BLUEPRINT: (t.source as SourceBlueprint).bp,
+                    BLUEPRINT: (t.source as Source).text,
                     ITEM_TICKS: t.recordItems ? t.tickInterval : null,
                     ELEC_TICKS: t.recordElectric ? t.tickInterval : null,
                     CIRC_TICKS: t.recordCircuits ? t.tickInterval : null,
                     POLL_TICKS: t.recordPollution ? t.tickInterval : null,
                     BOTS: t.initialBots,
                 })
-
-                // #TODO NEED TO GET THE MODLIST EXTRACTED FROM A BLUEPRINT!
-
-
-            } else if (t.source.type == 'savegame') {
+            } else if (t.source.variant == 'savegame') {
 
                 // 1. copy the save to the saves folder renaming it as the Trial ID
                 // 2. delete trial ID folder in 'saves' if it exists (NOT .zip)
@@ -154,8 +149,8 @@ export class Factory {
                 // modify control.lua
 
                 // copy the original save to the saves folder, renaming it as the trial ID
-                Logging.log('info', `Copying save ${(t.source as SourceSaveGame).savePath} to ${t.id}.zip`)
-                await fs.copyFile((t.source as SourceSaveGame).savePath, path.join(Factory.factoryDataPath, 'saves', t.id + '.zip'));
+                Logging.log('info', `Copying save ${(t.source as Source).text} to ${t.id}.zip`)
+                await fs.copyFile((t.source as Source).text, path.join(Factory.factoryDataPath, 'saves', t.id + '.zip'));
 
                 // delete trial ID folder in 'saves' if it exists
                 Logging.log('info', `Deleting existing save folder ${t.id} if present`);
@@ -163,11 +158,26 @@ export class Factory {
 
                 // extract save file
                 Logging.log('info', `Extracting save file ${t.id}.zip to ${path.join(Factory.factoryDataPath, 'saves', t.id)}`);
-                await decompress(path.join(Factory.factoryDataPath, 'saves', t.id + '.zip'), path.join(Factory.factoryDataPath, 'saves'));
+                let results = await decompress(path.join(Factory.factoryDataPath, 'saves', t.id + '.zip'), path.join(Factory.factoryDataPath, 'saves'));
+
+                // rename extracted folder to trial ID
+                let fn = results[0].path.substring(0, results[0].path.indexOf('/'))
+                fs.rename(path.join(Factory.factoryDataPath, 'saves', fn), path.join(Factory.factoryDataPath, 'saves', t.id))
 
                 // copy savegame.lua
                 Logging.log('info', `Copying savegame.lua to ${path.join(Factory.factoryDataPath, 'saves', t.id)}`);
                 await fs.copyFile(path.join(__dirname, '../', '../', 'factory', 'savegame.lua'), path.join(Factory.factoryDataPath, 'saves', t.id, 'savegame.lua'));
+
+                // MODIFY savegame.lua with our trial changes
+                // now, we need to modify the sandbox.lua file with our parameters
+                await Factory.writeKeyValuesToLuaFile(path.join(Factory.factoryDataPath, 'saves', t.id, 'savegame.lua'), {
+                    UID: t.id,
+                    ITEM_TICKS: t.recordItems ? t.tickInterval : null,
+                    ELEC_TICKS: t.recordElectric ? t.tickInterval : null,
+                    CIRC_TICKS: t.recordCircuits ? t.tickInterval : null,
+                    POLL_TICKS: t.recordPollution ? t.tickInterval : null,
+                    BOTS: t.initialBots,
+                })
 
                 // modify control.lua
                 Logging.log('info', `Modifying control.lua to include savegame.lua`);
@@ -175,14 +185,12 @@ export class Factory {
                 controlLua += 'handler.add_lib(require("savegame"))'
                 await fs.writeFile(path.join(Factory.factoryDataPath, 'saves', t.id, 'control.lua'), controlLua, {encoding: 'utf8'});
 
-                // #todo NEED TO GET THE MODLIST EXTRACTED FROM A SAVEGAME!
-
             } else
                 throw new Error('Cannot prepare trial! Unknown source type provided');
 
             // download the mods specified in 'source' if we can. do NOT move them into the 'mods' folder yet
             if (t.source?.modList)
-                await Factory.cacheModList((t.source as TrialSource).modList);
+                await Factory.cacheModList((t.source as Source).modList);
 
         } catch (e) {
             Logging.log('error', {message: `Failed to prepare trial ${t.id}`, error: e});
@@ -202,7 +210,7 @@ export class Factory {
 
         // we do the executable check inside IF so that savegames don't throw an error
         // savegames as a whole dont need to be compiled, so we just skip this step
-        if (t.source.type == 'blueprint') {
+        if (t.source.variant == 'blueprint') {
 
             if (Factory.isTrialRunning)
                 throw new Error('Cannot compile trial! Factorio executable is already running');
@@ -244,8 +252,6 @@ export class Factory {
                 Logging.log('error', {message: `Failed to compile scenario ${t.id}`, error: e});
                 throw e;
             }
-
-
         }
 
         t.setStage('compiled');
@@ -303,7 +309,10 @@ export class Factory {
             let nd = (new Date()).getTime();
 
             // Grab the text logs that prefix our raw system data
-            t.textLogs = r.execResults.substring(0, idxA).split('\n');
+            if (idxA != -1)
+                t.textLogs = r.execResults.substring(0, idxA).split('\n');
+            else
+                t.textLogs = r.execResults.substring(0, r.execResults.indexOf('Running update') - 1).split('\n')
 
             // We parse this way later in the analysis stage. We just do enough to split out textlogs and metadata
             t.rawSystemText = perfSubstr;
@@ -334,7 +343,7 @@ export class Factory {
 
     }
 
-    public static async analyzeTrial(t: Trial): Promise<IDatasetCombinedResults> {
+    public static async analyzeTrial(t: Trial, saveToDB: boolean = false): Promise<IDatasetCombinedResults> {
         if (!t?.id)
             throw new Error('Cannot analyze trial! ID is missing, or trial is null');
 
@@ -349,11 +358,11 @@ export class Factory {
 
             if (t.recordItems) {
                 Logging.log('info', {message: `Analyzing item data for trial ${t.id}`});
-                let itemDataset = new ItemDataset(t, path.join(Factory.scriptOutputPath, 'data', t.dataFiles.items))
-                await itemDataset.parseData()
-                rObj.items = itemDataset;
+                rObj.itemRecords = await Factory.parseItemDataFile(path.join(Factory.scriptOutputPath, 'data', t.dataFiles.items), t)
+                if (saveToDB && t instanceof SavedTrial)
+                    await FactoryDatabase.insertFlowRecords(rObj.itemRecords as SavedFlowRecord[])
             }
-            if (t.recordElectric) {
+            /*if (t.recordElectric) {
                 Logging.log('info', {message: `Analyzing electric data for trial ${t.id}`});
                 let electricDataset = new ElectricDataset(t, path.join(Factory.scriptOutputPath, 'data', t.dataFiles.electric))
                 await electricDataset.parseData()
@@ -364,20 +373,24 @@ export class Factory {
                 let circuitDataset = new CircuitDataset(t, path.join(Factory.scriptOutputPath, 'data', t.dataFiles.circuits))
                 await circuitDataset.parseData()
                 rObj.circuits = circuitDataset;
-            }
+            }*/
             if (t.recordPollution) {
                 Logging.log('info', {message: `Analyzing pollution data for trial ${t.id}`});
-                let pollutionDataset = new PollutionDataset(t, path.join(Factory.scriptOutputPath, 'data', t.dataFiles.pollution))
-                await pollutionDataset.parseData()
-                rObj.pollution = pollutionDataset;
+                rObj.pollutionRecords = await Factory.parsePollutionDataFile(path.join(Factory.scriptOutputPath, 'data', t.dataFiles.pollution), t)
+                if (saveToDB && t instanceof SavedTrial)
+                    await FactoryDatabase.insertPollutionRecords(rObj.pollutionRecords as SavedPollutionRecord[])
             }
             if (t.recordSystem) {
                 Logging.log('info', {message: `Analyzing system data for trial ${t.id}`});
-                let systemDataset = new SystemDataset(t, t.rawSystemText)
-                await systemDataset.parseData()
-                rObj.system = systemDataset;
+                rObj.systemRecords = Factory.parseSystemData(t.rawSystemText, t)
+                if (saveToDB && t instanceof SavedTrial)
+                    await FactoryDatabase.insertSystemRecords(rObj.systemRecords as SavedSystemRecord[])
             }
             await Factory.deleteScriptOutputFiles(t);
+            await Factory.deleteSaveFileClutter(t);
+            if (saveToDB && t instanceof SavedTrial)
+                await FactoryDatabase.saveTrial(t as SavedTrial, true)
+
             t.setStage('analyzed');
 
             return rObj
@@ -386,11 +399,275 @@ export class Factory {
             Logging.log('error', {message: `Failed to analyze trial ${t.id}`, error: e});
             throw e;
         }
-
     }
 
-    public static async saveTrialResults(results: IDatasetCombinedResults) {
-        // IF there is a database setup, this will save all data to the database
+    public static async parseItemDataFile(filepath: string, trial: Trial) {
+        let raw = await fs.readFile(filepath, 'utf-8');
+
+        let results: IGameFlowTick[] = [];
+        let lines = raw.split('\n');
+        for (let i = 0; i < lines.length - 1; i++) {
+            let l = lines[i];
+
+            // keep an active map of all items in this tick, adding information as needed
+            let itemMap = {};
+
+            // Parse line information into temp object
+            let lineParsed = JSON.parse(l);
+
+            // for each key in cons, upsert data to itemMap
+            let co = Object.keys(lineParsed.cons);
+            for (let c of co) {
+
+                // the item record if it exists
+                let ir: IGameFlowTick = itemMap[c];
+
+                if (ir) {
+                    // Update the cons value, as there is nothing else it can be.
+                    ir.cons = lineParsed.cons[c];
+                } else {
+                    // No object record exists yet - create and set it
+                    itemMap[c] = {
+                        label: c,
+                        tick: (i + 1) * trial.tickInterval,
+                        cons: lineParsed.cons[c],
+                        prod: 0,
+                    } as IGameFlowTick;
+                }
+            }
+
+            let po = Object.keys(lineParsed.prod);
+            for (let p of po) {
+
+                // the item record if it exists
+                let ir: IGameFlowTick = itemMap[p];
+
+                if (ir) {
+                    // Update the cons value, as there is nothing else it can be.
+                    ir.prod = lineParsed.prod[p];
+                } else {
+                    // No object record exists yet - create and set it
+                    itemMap[p] = {
+                        label: p,
+                        tick: (i + 1) * trial.tickInterval,
+                        cons: 0,
+                        prod: lineParsed.prod[p],
+                    } as IGameFlowTick;
+                }
+            }
+
+            // Now that the itemMap is populated, push all items to the results array for this tick. Convert all keys to an array, grabbing values from the map in a loop
+            let itemKeys = Object.keys(itemMap);
+            for (let ik of itemKeys) {
+                results.push(itemMap[ik]);
+            }
+        }
+        // for each item, calculate the average and total for  each item
+        let g = _.groupBy(results, 'label');
+        let kList = Object.keys(g);
+        let metadata = {
+            avg: {},
+            total: {}
+        }
+        for(let i = 0; i < kList.length; i++) {
+
+            // sum / length (in minutes)
+            let itemData = g[kList[i]]
+            let secondsLength = trial.length / (60 * 60)
+            let totalCons = _.sumBy(itemData, 'cons')
+            let totalProd = _.sumBy(itemData, 'prod')
+
+            metadata.avg[kList[i]] = {
+                cons: totalCons / secondsLength,
+                prod: totalProd / secondsLength
+            }
+            metadata.total[kList[i]] = {
+                cons: totalCons,
+                prod: totalProd
+            }
+        }
+        // lastly, if  our trial is a 'SavedTrial' type, we will make sure we convert all these records into SavedFlowRecords
+        if (trial instanceof SavedTrial) {
+            results = await SavedFlowRecord.fromRecords(results, trial.id);
+        }
+        trial.itemMetadata = metadata;
+        return results;
+    }
+
+    public static async parseElectricDataFile(filepath: string, trial: Trial) {
+        throw new Error('Electric data not implemented yet - need to analyze data output as it doesnt follow in-game values');
+    }
+
+    public static async parseCircuitDataFile(filepath: string, trial: Trial) {
+        throw new Error('Circuit data not implemented yet - need to ensure accuracy and prepare for future circuit changes');
+    }
+
+    public static async parsePollutionDataFile(filepath: string, trial: Trial) {
+        let raw = await fs.readFile(filepath, 'utf-8');
+
+        let results: IGamePollutionTick[] = [];
+        let lines = raw.split('\n');
+
+        // Now, need to sort through the list of lines and parse out the data
+        for (let i = 0; i < lines.length - 1; i++) {
+            let l = lines[i];
+
+            // each line is a object with 1 field - pollution. This is a float
+            let lData = JSON.parse(l);
+            results.push({
+                tick: (i + 1) * trial.tickInterval,
+                count: lData.pollution
+            })
+        }
+        if (trial instanceof SavedTrial) {
+            results = SavedPollutionRecord.fromRecords(results, trial.id);
+        }
+
+        return results;
+    }
+
+    public static parseSystemData(raw: string, trial: Trial) {
+        let lines = raw.split('\n');
+        // First line is headers, so we remove it
+        lines.shift();
+        // Now we have an array of strings, each string being a line of csv data
+        let results: ISystemTick[] = [];
+        let currentTickItem: ISystemTick = null;
+        let currentSetCount: number = 0;
+        let runningTimestamp: number = 0;
+        for (let l of lines) {
+            // Split by commas
+            let data = l.split(',');
+            if (!currentTickItem) {
+                currentSetCount = 1;
+                currentTickItem = {
+                    tick: Number.parseInt(data[0].substring(1)),
+                    timestamp: Number.parseInt(data[1]),
+                    wholeUpdate: Number.parseInt(data[2]),
+                    latencyUpdate: Number.parseInt(data[3]),
+                    gameUpdate: Number.parseInt(data[4]),
+                    circuitNetworkUpdate: Number.parseInt(data[5]),
+                    transportLinesUpdate: Number.parseInt(data[6]),
+                    fluidsUpdate: Number.parseInt(data[7]),
+                    heatManagerUpdate: Number.parseInt(data[8]),
+                    entityUpdate: Number.parseInt(data[9]),
+                    particleUpdate: Number.parseInt(data[10]),
+                    mapGenerator: Number.parseInt(data[11]),
+                    mapGeneratorBasicTilesSupportCompute: Number.parseInt(data[12]),
+                    mapGeneratorBasicTilesSupportApply: Number.parseInt(data[13]),
+                    mapGeneratorCorrectedTilesPrepare: Number.parseInt(data[14]),
+                    mapGeneratorCorrectedTilesCompute: Number.parseInt(data[15]),
+                    mapGeneratorCorrectedTilesApply: Number.parseInt(data[16]),
+                    mapGeneratorVariations: Number.parseInt(data[17]),
+                    mapGeneratorEntitiesPrepare: Number.parseInt(data[18]),
+                    mapGeneratorEntitiesCompute: Number.parseInt(data[19]),
+                    mapGeneratorEntitiesApply: Number.parseInt(data[20]),
+                    crcComputation: Number.parseInt(data[21]),
+                    electricNetworkUpdate: Number.parseInt(data[22]),
+                    logisticManagerUpdate: Number.parseInt(data[23]),
+                    constructionManagerUpdate: Number.parseInt(data[24]),
+                    pathFinder: Number.parseInt(data[25]),
+                    trains: Number.parseInt(data[26]),
+                    trainPathFinder: Number.parseInt(data[27]),
+                    commander: Number.parseInt(data[28]),
+                    chartRefresh: Number.parseInt(data[29]),
+                    luaGarbageIncremental: Number.parseInt(data[30]),
+                    chartUpdate: Number.parseInt(data[31]),
+                    scriptUpdate: Number.parseInt(data[32])
+                }
+            } else {
+                // add to the tick item, then evaluate if we need to push and reset it (if we are at tickInterval count)
+                // We add 1 to the tick because it is representative of the 'last 300 ticks'. So if we state 300, we are
+                // NOT including tick 300. therefore, it can show as 300 for data organization and matching, but tick 300
+                // goes towards the next interval mark, at 600.
+                currentTickItem.tick = Number.parseInt(data[0].substring(1)) + 1;
+                currentTickItem.timestamp = Number.parseInt(data[1]);
+                currentTickItem.wholeUpdate += Number.parseInt(data[2]);
+                currentTickItem.latencyUpdate += Number.parseInt(data[3]);
+                currentTickItem.gameUpdate += Number.parseInt(data[4]);
+                currentTickItem.circuitNetworkUpdate += Number.parseInt(data[5]);
+                currentTickItem.transportLinesUpdate += Number.parseInt(data[6]);
+                currentTickItem.fluidsUpdate += Number.parseInt(data[7]);
+                currentTickItem.heatManagerUpdate += Number.parseInt(data[8]);
+                currentTickItem.entityUpdate += Number.parseInt(data[9]);
+                currentTickItem.particleUpdate += Number.parseInt(data[10]);
+                currentTickItem.mapGenerator += Number.parseInt(data[11]);
+                currentTickItem.mapGeneratorBasicTilesSupportCompute += Number.parseInt(data[12]);
+                currentTickItem.mapGeneratorBasicTilesSupportApply += Number.parseInt(data[13]);
+                currentTickItem.mapGeneratorCorrectedTilesPrepare += Number.parseInt(data[14]);
+                currentTickItem.mapGeneratorCorrectedTilesCompute += Number.parseInt(data[15]);
+                currentTickItem.mapGeneratorCorrectedTilesApply += Number.parseInt(data[16]);
+                currentTickItem.mapGeneratorVariations += Number.parseInt(data[17]);
+                currentTickItem.mapGeneratorEntitiesPrepare += Number.parseInt(data[18]);
+                currentTickItem.mapGeneratorEntitiesCompute += Number.parseInt(data[19]);
+                currentTickItem.mapGeneratorEntitiesApply += Number.parseInt(data[20]);
+                currentTickItem.crcComputation += Number.parseInt(data[21]);
+                currentTickItem.electricNetworkUpdate += Number.parseInt(data[22]);
+                currentTickItem.logisticManagerUpdate += Number.parseInt(data[23]);
+                currentTickItem.constructionManagerUpdate += Number.parseInt(data[24]);
+                currentTickItem.pathFinder += Number.parseInt(data[25]);
+                currentTickItem.trains += Number.parseInt(data[26]);
+                currentTickItem.trainPathFinder += Number.parseInt(data[27]);
+                currentTickItem.commander += Number.parseInt(data[28]);
+                currentTickItem.chartRefresh += Number.parseInt(data[29]);
+                currentTickItem.luaGarbageIncremental += Number.parseInt(data[30]);
+                currentTickItem.chartUpdate += Number.parseInt(data[31]);
+                currentTickItem.scriptUpdate += Number.parseInt(data[32]);
+                currentSetCount += 1;
+            }
+
+            if (currentSetCount >= trial.tickInterval) {
+                // Cut nanoseconds down to milliseconds so its more comprehensive
+
+                // Timestamp is a 'always increasing' field, so instead we just want to record the differences between points.
+                // This gives much more useful information
+                let tb = currentTickItem.timestamp;
+                currentTickItem.timestamp = (currentTickItem.timestamp - runningTimestamp) / 1000000;
+                runningTimestamp = tb;
+
+                currentTickItem.wholeUpdate = currentTickItem.wholeUpdate / 1000000;
+                currentTickItem.latencyUpdate = currentTickItem.latencyUpdate / 1000000;
+                currentTickItem.gameUpdate = currentTickItem.gameUpdate / 1000000;
+                currentTickItem.circuitNetworkUpdate = currentTickItem.circuitNetworkUpdate / 1000000;
+                currentTickItem.transportLinesUpdate = currentTickItem.transportLinesUpdate / 1000000;
+                currentTickItem.fluidsUpdate = currentTickItem.fluidsUpdate / 1000000;
+                currentTickItem.heatManagerUpdate = currentTickItem.heatManagerUpdate / 1000000;
+                currentTickItem.entityUpdate = currentTickItem.entityUpdate / 1000000;
+                currentTickItem.particleUpdate = currentTickItem.particleUpdate / 1000000;
+                currentTickItem.mapGenerator = currentTickItem.mapGenerator / 1000000;
+                currentTickItem.mapGeneratorBasicTilesSupportCompute = currentTickItem.mapGeneratorBasicTilesSupportCompute / 1000000;
+                currentTickItem.mapGeneratorBasicTilesSupportApply = currentTickItem.mapGeneratorBasicTilesSupportApply / 1000000;
+                currentTickItem.mapGeneratorCorrectedTilesPrepare = currentTickItem.mapGeneratorCorrectedTilesPrepare / 1000000;
+                currentTickItem.mapGeneratorCorrectedTilesCompute = currentTickItem.mapGeneratorCorrectedTilesCompute / 1000000;
+                currentTickItem.mapGeneratorCorrectedTilesApply = currentTickItem.mapGeneratorCorrectedTilesApply / 1000000;
+                currentTickItem.mapGeneratorVariations = currentTickItem.mapGeneratorVariations / 1000000;
+                currentTickItem.mapGeneratorEntitiesPrepare = currentTickItem.mapGeneratorEntitiesPrepare / 1000000;
+                currentTickItem.mapGeneratorEntitiesCompute = currentTickItem.mapGeneratorEntitiesCompute / 1000000;
+                currentTickItem.mapGeneratorEntitiesApply = currentTickItem.mapGeneratorEntitiesApply / 1000000;
+                currentTickItem.crcComputation = currentTickItem.crcComputation / 1000000;
+                currentTickItem.electricNetworkUpdate = currentTickItem.electricNetworkUpdate / 1000000;
+                currentTickItem.logisticManagerUpdate = currentTickItem.logisticManagerUpdate / 1000000;
+                currentTickItem.constructionManagerUpdate = currentTickItem.constructionManagerUpdate / 1000000;
+                currentTickItem.pathFinder = currentTickItem.pathFinder / 1000000;
+                currentTickItem.trains = currentTickItem.trains / 1000000;
+                currentTickItem.trainPathFinder = currentTickItem.trainPathFinder / 1000000;
+                currentTickItem.commander = currentTickItem.commander / 1000000;
+                currentTickItem.chartRefresh = currentTickItem.chartRefresh / 1000000;
+                currentTickItem.luaGarbageIncremental = currentTickItem.luaGarbageIncremental / 1000000;
+                currentTickItem.chartUpdate = currentTickItem.chartUpdate / 1000000;
+                currentTickItem.scriptUpdate = currentTickItem.scriptUpdate / 1000000;
+
+                // Push the current tick item, then reset it.
+                results.push(currentTickItem);
+                currentTickItem = null;
+                currentSetCount = 0;
+            }
+        }
+        // what do we need for metadata? Include here
+        if (trial instanceof SavedTrial) {
+            results = SavedSystemRecord.fromRecords(results, trial.id);
+        }
+        return results;
     }
 
     public static isTrialRunning: boolean = false;
@@ -459,7 +736,11 @@ export class Factory {
     static async setupLogger(hideConsole: boolean = false) {
         // Phase 1 - start the logger and other random system packages
         const logFormat = winston.format.printf(function (info) {
-            return `${info.timestamp}-${info.level}: ${Object.keys(info).length <= 3 ? info.message : JSON.stringify(info, null, 4)}`;
+            try {
+                return `${info.timestamp}-${info.level}: ${Object.keys(info).length <= 3 ? info.message : JSON.stringify(info, null, 4)}`;
+            } catch (e) {
+                return "LOGERROR"
+            }
         });
         if (hideConsole === true) {
             Logging.startLogger([
@@ -509,8 +790,21 @@ export class Factory {
             Logging.log('error', {message: `Failed to delete raw files for trial ${trialId}`, error: e});
         }
     }
+    private static async deleteSaveFileClutter(trial: string | Trial) {
+        // deletes all raw files associated with this trial in the script-output directory
+        let trialId = typeof trial === 'string' ? trial : trial.id;
+        try {
+            await Promise.allSettled([
+                fs.remove(path.join(Factory.factoryDataPath, 'saves', `${trialId}.zip`)),
+                fs.remove(path.join(Factory.factoryDataPath, 'saves', `${trialId}`)),
+                fs.remove(path.join(Factory.factoryDataPath, 'scenarios', `${trialId}`)),
+            ]);
+        } catch (e) {
+            Logging.log('error', {message: `Failed to delete save files for trial ${trialId}`, error: e});
+        }
+    }
 
-    static async applyModsOfSource(source: TrialSource) {
+    static async applyModsOfSource(source: Source) {
         /*
         * We assume that all mods listed exist in the mods-cache - if we try to symlink one and it doesn't exist, throw error
         * */
@@ -518,10 +812,10 @@ export class Factory {
         await Factory.clearActiveMods();
         if (source.modList && source.modList.mods.length > 0) {
             // we now need to symlink all the mods first
-            await Factory.symlinkModFiles(source.modList.factorioModFiles);
+            await Factory.symlinkModFiles(source.modList.modFileNames);
 
             // if it exists, symlink the mod-settings.dat file
-            if (source.modList.settingsFile)
+            if (source.modList.settingsFile && !(await fs.exists(path.join(Factory.factoryDataPath, 'mod-settings.dat'))))
                 await fs.symlink(source.modList.settingsFile, path.join(Factory.factoryDataPath, 'mod-settings.dat'));
 
             // then, we need to write the mod-list.json file. Factorio uses this to load the actual list of mods
@@ -573,6 +867,7 @@ export class Factory {
             fs.ensureDir(path.join(params.dataDir, 'mods')),
             fs.ensureDir(path.join(params.dataDir, 'scenarios')),
             fs.ensureDir(path.join(params.dataDir, 'saves')),
+            fs.ensureDir(path.join(params.dataDir, 'saves-upload')),
             fs.ensureDir(path.join(params.dataDir, 'script-output')),
             fs.ensureDir(path.join(params.dataDir, 'downloads')),
             fs.ensureDir(path.join(params.dataDir, 'mods-cache'))
@@ -727,13 +1022,22 @@ export class Factory {
         if (localOsDistro === 'win32') {
             await decompress(filepath, Factory.factoryInstallPath);
         } else {
-            await decompress(filepath, Factory.factoryInstallPath, {
+            // decompress using TAR
+            await new Promise((resolve, reject) => {
+                exec(`tar -xf ${filepath} -C ${Factory.factoryInstallPath} --strip-components=1`, (error, stdout, stderr) => {
+                    if (error)
+                        reject(error)
+                    else
+                        resolve(stdout)
+                })
+            })
+            /*await decompress(filepath, Factory.factoryInstallPath, {
                 plugins: [decompressTarxz()],
                 map: file => {
                     file.path = file.path.substring(9)
                     return file;
                 }
-            });
+            });*/
         }
 
         await Factory.verifyInstall();
@@ -775,19 +1079,24 @@ export class Factory {
         await fs.emptyDir(path.join(Factory.factoryDataPath, 'mods'));
     }
 
-    // returns true if already cached, false if it was downloaded then cached
-    static async cacheMod(mod: Mod) {
+    // returns cached version of given mod
+    static async cacheMod(mod: string): Promise<string | null> {
+        let name: string = mod.substring(0, mod.lastIndexOf('_'));
+        let v: string;
+        if (mod.endsWith('latest.zip') || mod.endsWith('latest')) {
+            // get most recent version first
+            v = await FactorioApi.getLatestModVersion(mod.substring(0, mod.lastIndexOf('_')))
+        } else {
+            v = mod.substring(mod.lastIndexOf('_') + 1, mod.indexOf('.zip'));
+        }
+
         // first, check if this mod is already cached
-        if (Factory.modCache.has(mod.file))
-            return true;
+        if (Factory.modCache.has(`${name}_${v}.zip`))
+            return v;
 
-        // if not, download it
-        if (mod.version == 'latest')
-            mod.version = await FactorioApi.getLatestModVersion(mod.name)
-
-        await FactorioApi.downloadMod(mod.name, mod.version);
-        Factory.modCache.add(mod.file);
-        return false
+        await FactorioApi.downloadMod(name, v);
+        Factory.modCache.add(`${name}_${v}.zip`);
+        return v
     }
 
     /*
@@ -798,7 +1107,9 @@ export class Factory {
         // We need to make sure all listed mods are present in the mods-cache
         // if a version does not exist in the name, we will assume latest version and append it to the name
         for (let i = 0; i < mods.mods.length; i++) {
-            await Factory.cacheMod(mods.mods[i])
+            let v = await Factory.cacheMod(mods.mods[i])
+            if (mods.mods[i].endsWith('_latest.zip'))
+                mods.mods[i] = `${mods.mods[i].substring(0, mods.mods[i].lastIndexOf('_'))}_${v}.zip`
         }
         //await fs.ensureSymlink('','', 'file')
     }
@@ -853,8 +1164,8 @@ export class Factory {
                 });
             });
         } catch (e) {
-            Logging.log('error', `Error running factorio executable - ${e.message}`)
-            throw new Error(`Error running factorio executable - ${e.message}`);
+            Logging.log('error', `Error running factorio executable - ${execResults}}`)
+            throw new Error(`Error running factorio executable - ${e}`);
         }
         this.factorioRunning = false;
         let end = new Date();

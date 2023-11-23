@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Trial = void 0;
 const crypto_1 = require("crypto");
-const TrialSource_1 = require("./TrialSource");
+const Source_1 = require("./Source");
 // one of the main classes needed to do much of anything
 class Trial {
     // filename results - generated from flags of which data to poll + id
@@ -17,7 +17,7 @@ class Trial {
         else
             return undefined;
     }
-    constructor(params) {
+    constructor(params = null) {
         // current stage of the trial
         this.stage = 'new';
         // the length (in ticks) of the trial
@@ -29,7 +29,7 @@ class Trial {
         // Boolean flags for each 'data' category, used to determine which data to record
         this.recordItems = true;
         this.recordElectric = false; // electric needs to be looked at for accuracy
-        this.recordCircuits = true;
+        this.recordCircuits = false; // circuits needs to be looked at for accuracy
         this.recordPollution = true;
         this.recordSystem = false;
         /*
@@ -42,6 +42,7 @@ class Trial {
         * Running a trial again without analyzing will clear the variables below
         *
         * */
+        this.createdAt = null;
         this.startedRunAt = null;
         this.startedAt = null;
         this.endedAt = null;
@@ -51,26 +52,37 @@ class Trial {
         this.rawSystemText = null;
         // metadata from execution
         this.metadata = null;
+        this.itemMetadata = null;
+        // electricMetadata: any = null;
+        // circuitMetadata: any = null;
+        this.pollutionMetadata = null;
+        // In the event the constructor was called null, we will allow and still create an ID. ORMs can do this at times
+        this.id = (0, crypto_1.randomUUID)();
+        this.createdAt = new Date();
         // we allow no-param construction of any class - this helps with ORMs and type casting
         if (!params)
             return;
-        // In the event the constructor was called null, we will allow and still create an ID. ORMs can do this at times
-        this.id = (0, crypto_1.randomUUID)();
         // If our source is a string, we need to create the source object automatically
         if (params.source && typeof params.source == 'string') {
             if (params.source.endsWith('.zip')) {
                 // create save source
-                this.source = new TrialSource_1.SourceSaveGame(params.source);
+                this.source = new Source_1.Source({
+                    saveGamePath: params.source,
+                });
             }
             else {
                 // create blueprint source
-                this.source = new TrialSource_1.SourceBlueprint(params.source);
+                this.source = new Source_1.Source({
+                    blueprint: params.source,
+                });
             }
         }
         else {
             // otherwise, we assume its already a source object
-            this.source = params.source.type == 'blueprint' ? params.source : params.source;
+            this.source = params.source;
         }
+        this.name = params.name;
+        this.desc = params.desc;
         // set the other data we need as well about the trial
         if (params.length)
             this.length = params.length;
@@ -81,16 +93,16 @@ class Trial {
         if (params.recordItems)
             this.recordItems = params.recordItems;
         if (params.recordElectric)
-            this.recordElectric = params.recordElectric;
+            this.recordElectric = false; // params.recordElectric;
         if (params.recordCircuits)
-            this.recordCircuits = params.recordCircuits;
+            this.recordCircuits = false; // params.recordCircuits;
         if (params.recordPollution)
             this.recordPollution = params.recordPollution;
         if (params.recordSystem)
             this.recordSystem = params.recordSystem;
     }
     get ready() {
-        return this.source.hashFinished;
+        return this.source.ready;
     }
     setStage(stage) {
         this.stage = stage;

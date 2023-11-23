@@ -14,8 +14,12 @@ import {Trial} from "../src/Trial";
 import * as fs from "fs";
 import path from "path";
 import {Factory} from "../src/Factory";
-import {SourceBlueprint} from "../src/TrialSource";
 import {ModList} from "../src/ModList";
+import {Source} from "../src/Source";
+import {FactoryDatabase} from "../src/FactoryDatabase";
+import {SavedTrial} from "../src/database/SavedTrial";
+import {SavedSource} from "../src/database/SavedSource";
+import {FactoryBackend} from "../src/FactoryBackend";
 
 dotenv.config();
 
@@ -34,31 +38,46 @@ const bpFile = path.join(process.cwd(), 'factory/examples/45spm_base.bp');
 *
 * */
 
-Factory.initialize({
-    installDir: '/home/overflow/Apps/factorio_auto_v2',
-    hideConsole: false
-    // user info is provided auto-magically from .env
-}).then(async () => {
+async function main() {
     console.log('SETUP DEBUG STAGE 1 COMPLETE');
 
-    // lets try running a blueprint test
-    let bp = fs.readFileSync(bpFile, 'utf8');
-
-    let source = new SourceBlueprint(bp);
-
-    await source.hashFinished;
-    return new Trial({
-        source,
-        length: 7200,
-        tickInterval: 60,
-        initialBots: 200,
-        recordSystem: false,
-        recordCircuits: true,
-        recordPollution: true,
+    await Factory.initialize({
+        installDir: '/home/overflow/Apps/factorio_auto_v3',
+        hideConsole: false
+        // user info is provided auto-magically from .env
     })
+    await FactoryDatabase.initialize()
+    await FactoryBackend.startServer();
 
-}).then(async (t) => {
-    let results = await Factory.analyzeTrial(t);
+    // lets try running a blueprint test
+    // let bp = fs.readFileSync(bpFile, 'utf8');
+    //
+    // let source = new SavedSource({
+    //     blueprint: bp,
+    //     name: '45spm_base',
+    // });
+
+    // let t = new SavedTrial({
+    //     source,
+    //     length: 7200,
+    //     tickInterval: 60,
+    //     initialBots: 200,
+    //     recordSystem: true,
+    //     recordCircuits: true,
+    //     recordPollution: true,
+    // })
+    //await t.ready
+    //await FactoryDatabase.saveTrial(t);
+    //let v = await FactoryDatabase.loadTrial(t.id);
+
+    //let results = await Factory.analyzeTrial(t, true);
+
+    //await FactoryDatabase.saveTrial(t, false)
+
+}
+
+main().then(async (t) => {
+
     console.log('TRIAL RUN!');
 }).catch((e) => {
     console.error(e);

@@ -1,9 +1,9 @@
 import {randomUUID} from "crypto";
-import {SourceBlueprint, SourceSaveGame, TrialSource} from "./TrialSource";
+import {Source} from "./Source";
 
 export interface ITrialParams {
     // requirement for a trial to run - must be an existing 'source', or specify a blueprint string / save game file name
-    source: TrialSource | string;
+    source: Source | string;
 
     // how long (ticks) the trial will run for. Remember, factorio is locked at 60 ticks per second when being played
     length?: number;
@@ -20,6 +20,9 @@ export interface ITrialParams {
     recordCircuits?: boolean
     recordPollution?: boolean
     recordSystem?: boolean
+
+    name?: string
+    desc?: string
 }
 
 export interface ITrialDataFiles {
@@ -51,7 +54,7 @@ export class Trial {
     stage: TTrialStages = 'new';
 
     // Blueprint / Savegame source used to supply/run this trial
-    source: TrialSource
+    source: Source
 
     // the length (in ticks) of the trial
     length: number = 3600
@@ -65,9 +68,12 @@ export class Trial {
     // Boolean flags for each 'data' category, used to determine which data to record
     recordItems: boolean = true
     recordElectric: boolean = false // electric needs to be looked at for accuracy
-    recordCircuits: boolean = true
+    recordCircuits: boolean = false // circuits needs to be looked at for accuracy
     recordPollution: boolean = true
     recordSystem: boolean = false
+
+    name?: string
+    desc?: string
 
     /*
     * The following are used to track the state of the trial itself as its running, BEFORE a Dataset is created
@@ -79,6 +85,7 @@ export class Trial {
     * Running a trial again without analyzing will clear the variables below
     *
     * */
+    createdAt: Date = null;
     startedRunAt: Date = null;
     startedAt: Date = null;
     endedAt: Date = null;
@@ -91,6 +98,11 @@ export class Trial {
 
     // metadata from execution
     metadata: any = null;
+
+    itemMetadata: any = null;
+    // electricMetadata: any = null;
+    // circuitMetadata: any = null;
+    pollutionMetadata: any = null;
 
     // filename results - generated from flags of which data to poll + id
     get dataFiles(): ITrialDataFiles {
@@ -105,28 +117,36 @@ export class Trial {
             return undefined
     }
 
-    constructor(params: ITrialParams) {
+    constructor(params: ITrialParams = null) {
+
+        // In the event the constructor was called null, we will allow and still create an ID. ORMs can do this at times
+        this.id = randomUUID();
+        this.createdAt = new Date()
 
         // we allow no-param construction of any class - this helps with ORMs and type casting
         if (!params)
             return;
 
-        // In the event the constructor was called null, we will allow and still create an ID. ORMs can do this at times
-        this.id = randomUUID();
-
         // If our source is a string, we need to create the source object automatically
         if (params.source && typeof params.source == 'string') {
             if (params.source.endsWith('.zip')) {
                 // create save source
-                this.source = new SourceSaveGame(params.source)
+                this.source = new Source({
+                    saveGamePath: params.source,
+                })
             } else {
                 // create blueprint source
-                this.source = new SourceBlueprint(params.source);
+                this.source = new Source({
+                    blueprint: params.source,
+                })
             }
         } else {
             // otherwise, we assume its already a source object
-            this.source = (params.source as TrialSource).type == 'blueprint' ? params.source as SourceBlueprint : params.source as SourceSaveGame;
+            this.source = params.source as Source
         }
+
+        this.name = params.name;
+        this.desc = params.desc;
 
         // set the other data we need as well about the trial
         if (params.length)
@@ -142,10 +162,10 @@ export class Trial {
             this.recordItems = params.recordItems;
 
         if (params.recordElectric)
-            this.recordElectric = params.recordElectric;
+            this.recordElectric = false // params.recordElectric;
 
         if (params.recordCircuits)
-            this.recordCircuits = params.recordCircuits;
+            this.recordCircuits = false // params.recordCircuits;
 
         if (params.recordPollution)
             this.recordPollution = params.recordPollution;
@@ -155,12 +175,18 @@ export class Trial {
     }
 
     get ready(): Promise<boolean> {
-        return this.source.hashFinished;
+        return this.source.ready;
     }
 
     setStage(stage: TTrialStages) {
         this.stage = stage;
     }
+
+    // handle data processing here - not in dataset
+    // dataset is being removed, only the child 'records' remain
+    // a new class will be introduced in the future for calculations, called 'DatasetAnaylsis'
+
+
 
     // Called by Factory when trial has completed, used to link TRIAL to a created DATA object
     /*async linkData(data: Dataset) {

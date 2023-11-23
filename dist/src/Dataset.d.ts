@@ -1,10 +1,9 @@
-import { Trial } from "./Trial";
 export interface IDatasetCombinedResults {
-    items?: ItemDataset;
-    electric?: ElectricDataset;
-    circuits?: CircuitDataset;
-    pollution?: PollutionDataset;
-    system?: SystemDataset;
+    itemRecords?: IGameFlowTick[];
+    electricRecords?: IGameElectricTick[];
+    circuitRecords?: IGameCircuitTick[];
+    pollutionRecords?: IGamePollutionTick[];
+    systemRecords?: ISystemTick[];
 }
 export interface IGameFlowTick {
     cons: number;
@@ -23,15 +22,8 @@ export interface IGameCircuitTick {
     circuitId: number;
     color: string;
     tick: number;
-    signals: IGameCircuitSignal[];
-}
-export interface IGameCircuitSignal {
-    signal: IGameCircuitSignalType;
+    signal: string;
     count: number;
-}
-export interface IGameCircuitSignalType {
-    type: string;
-    name: string;
 }
 export interface IGamePollutionTick {
     count: number;
@@ -71,45 +63,4 @@ export interface ISystemTick {
     luaGarbageIncremental: number;
     chartUpdate: number;
     scriptUpdate: number;
-}
-export declare class Dataset {
-    startedAt: Date;
-    endedAt: Date;
-    trial: Trial;
-    raw?: string;
-    avg: any;
-    total: any;
-    constructor(trial: Trial);
-    parseData(): Promise<any[]>;
-    calculateMetadata(): void;
-}
-export declare class ItemDataset extends Dataset {
-    data: IGameFlowTick[];
-    constructor(trial: Trial, itemDataFile: string);
-    parseData(): Promise<IGameFlowTick[]>;
-    calculateMetadata(): void;
-}
-export declare class ElectricDataset extends Dataset {
-    data: IGameElectricTick[];
-    constructor(trial: Trial, itemDataFile: string);
-    parseData(): Promise<IGameElectricTick[]>;
-    calculateMetadata(): void;
-}
-export declare class CircuitDataset extends Dataset {
-    data: IGameCircuitTick[];
-    constructor(trial: Trial, itemDataFile: string);
-    parseData(): Promise<IGameCircuitTick[]>;
-    calculateMetadata(): void;
-}
-export declare class PollutionDataset extends Dataset {
-    data: IGamePollutionTick[];
-    constructor(trial: Trial, itemDataFile: string);
-    parseData(): Promise<IGamePollutionTick[]>;
-    calculateMetadata(): void;
-}
-export declare class SystemDataset extends Dataset {
-    data: ISystemTick[];
-    constructor(trial: Trial, raw: string);
-    parseData(): Promise<ISystemTick[]>;
-    calculateMetadata(): void;
 }
