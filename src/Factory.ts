@@ -57,11 +57,6 @@ export interface IFactoryStartParams {
 
 }
 
-export interface IFactoryModRecord {
-    name: string;
-    enabled?: boolean; // if missing, assumed to be true
-}
-
 /*
 * Trial Prepare, Compile, Run, and Analyze
 
@@ -152,27 +147,27 @@ export class Factory {
 
                 // copy the original save to the saves folder, renaming it as the trial ID
                 Logging.log('info', `Copying save ${(t.source as Source).text} to ${t.id}.zip`)
-                await fs.copyFile((t.source as Source).text, path.join(Factory.factoryDataPath, 'saves', t.id + '.zip'));
+                await fs.copyFile((t.source as Source).text, path.join(Factory.savesPath, t.id + '.zip'));
 
                 // delete trial ID folder in 'saves' if it exists
                 Logging.log('info', `Deleting existing save folder ${t.id} if present`);
-                await fs.remove(path.join(Factory.factoryDataPath, 'saves', t.id));
+                await fs.remove(path.join(Factory.savesPath, t.id));
 
                 // extract save file
-                Logging.log('info', `Extracting save file ${t.id}.zip to ${path.join(Factory.factoryDataPath, 'saves', t.id)}`);
-                let results = await decompress(path.join(Factory.factoryDataPath, 'saves', t.id + '.zip'), path.join(Factory.factoryDataPath, 'saves'));
+                Logging.log('info', `Extracting save file ${t.id}.zip to ${path.join(Factory.savesPath, t.id)}`);
+                let results = await decompress(path.join(Factory.savesPath, t.id + '.zip'), Factory.savesPath);
 
                 // rename extracted folder to trial ID
                 let fn = results[0].path.substring(0, results[0].path.indexOf('/'))
-                fs.rename(path.join(Factory.factoryDataPath, 'saves', fn), path.join(Factory.factoryDataPath, 'saves', t.id))
+                fs.rename(path.join(Factory.savesPath, fn), path.join(Factory.savesPath, t.id))
 
                 // copy savegame.lua
-                Logging.log('info', `Copying savegame.lua to ${path.join(Factory.factoryDataPath, 'saves', t.id)}`);
-                await fs.copyFile(path.join(__dirname, '../', '../', 'factory', 'savegame.lua'), path.join(Factory.factoryDataPath, 'saves', t.id, 'savegame.lua'));
+                Logging.log('info', `Copying savegame.lua to ${path.join(Factory.savesPath, t.id)}`);
+                await fs.copyFile(path.join(__dirname, '../', '../', 'factory', 'savegame.lua'), path.join(Factory.savesPath, t.id, 'savegame.lua'));
 
                 // MODIFY savegame.lua with our trial changes
                 // now, we need to modify the sandbox.lua file with our parameters
-                await Factory.writeKeyValuesToLuaFile(path.join(Factory.factoryDataPath, 'saves', t.id, 'savegame.lua'), {
+                await Factory.writeKeyValuesToLuaFile(path.join(Factory.savesPath, t.id, 'savegame.lua'), {
                     UID: t.id,
                     ITEM_TICKS: t.recordItems ? t.tickInterval : null,
                     ELEC_TICKS: t.recordElectric ? t.tickInterval : null,
@@ -183,9 +178,9 @@ export class Factory {
 
                 // modify control.lua
                 Logging.log('info', `Modifying control.lua to include savegame.lua`);
-                let controlLua = await fs.readFile(path.join(Factory.factoryDataPath, 'saves', t.id, 'control.lua'), {encoding: 'utf8'});
+                let controlLua = await fs.readFile(path.join(Factory.savesPath, t.id, 'control.lua'), {encoding: 'utf8'});
                 controlLua += 'handler.add_lib(require("savegame"))'
-                await fs.writeFile(path.join(Factory.factoryDataPath, 'saves', t.id, 'control.lua'), controlLua, {encoding: 'utf8'});
+                await fs.writeFile(path.join(Factory.savesPath, t.id, 'control.lua'), controlLua, {encoding: 'utf8'});
 
             } else
                 throw new Error('Cannot prepare trial! Unknown source type provided');
@@ -228,23 +223,23 @@ export class Factory {
                 await Factory.applyModsOfSource(t.source);
 
                 // remove existing compile folder and zip file if exists
-                await fs.remove(path.join(Factory.factoryDataPath, 'saves', t.id + '.zip'))
-                await fs.remove(path.join(Factory.factoryDataPath, 'saves', t.id))
+                await fs.remove(path.join(Factory.savesPath, t.id + '.zip'))
+                await fs.remove(path.join(Factory.savesPath, t.id))
 
                 // run factorio executable to convert scenario -> save
                 Logging.log('info', `Compiling scenario ${t.id} into save file`);
                 let results = await Factory.runFactorio(['-m', t.id])
-                if (!fs.existsSync(path.join(Factory.factoryDataPath, 'saves', `${t.id}.zip`))) {
+                if (!fs.existsSync(path.join(Factory.savesPath, `${t.id}.zip`))) {
                     await fs.writeFile(path.join(Factory.factoryDataPath, 'compile.log'), results.execResults, {encoding: 'utf8'});
                     throw new Error(`Scenario ${t.id} could not be compiled! Zip save file does not exist - check 'compile.log' for more details`);
                 } else
                     Logging.log('info', `Scenario ${t.id} compiled in ${results.end.getTime() - results.start.getTime()}ms`);
 
                 // extract the save file to a folder of the same name
-                Logging.log('info', `Extracting save file ${t.id}.zip to ${path.join(Factory.factoryDataPath, 'saves', t.id)}`);
-                await decompress(path.join(Factory.factoryDataPath, 'saves', `${t.id}.zip`), path.join(Factory.factoryDataPath, 'saves'));
+                Logging.log('info', `Extracting save file ${t.id}.zip to ${path.join(Factory.savesPath, t.id)}`);
+                await decompress(path.join(Factory.savesPath, `${t.id}.zip`), path.join(Factory.savesPath));
 
-                if (!fs.existsSync(path.join(Factory.factoryDataPath, 'saves', t.id, 'sandbox.lua')))
+                if (!fs.existsSync(path.join(Factory.savesPath, t.id, 'sandbox.lua')))
                     throw new Error(`Scenario ${t.id} was not extracted! Save Folder does not exist - extract ${t.id}.zip manually if needed`);
 
                 Factory.isTrialRunning = false
@@ -351,7 +346,8 @@ export class Factory {
         circuits?: IGameFlowCircuitResults
         pollution?: IGameFlowPollutionResults
         system?: IGameFlowSystemResults
-    }> {
+    }>
+    {
         if (!t?.id)
             throw new Error('Cannot analyze trial! ID is missing, or trial is null');
 
@@ -705,6 +701,18 @@ export class Factory {
         return path.join(this.factoryDataPath, 'mods');
     }
 
+    static get modsCachePath(): string {
+        return path.join(this.factoryDataPath, 'mods-cache');
+    }
+
+    static get savesPath(): string {
+        return path.join(this.factoryDataPath, 'saves');
+    }
+
+    static get scenariosPath(): string {
+        return path.join(this.factoryDataPath, 'scenarios');
+    }
+
     static get scriptOutputPath(): string {
         return path.join(this.factoryDataPath, 'script-output');
     }
@@ -823,8 +831,8 @@ export class Factory {
         let trialId = typeof trial === 'string' ? trial : trial.id;
         try {
             await Promise.allSettled([
-                fs.remove(path.join(Factory.factoryDataPath, 'saves', `${trialId}.zip`)),
-                fs.remove(path.join(Factory.factoryDataPath, 'saves', `${trialId}`)),
+                fs.remove(path.join(Factory.savesPath, `${trialId}.zip`)),
+                fs.remove(path.join(Factory.savesPath, `${trialId}`)),
                 fs.remove(path.join(Factory.factoryDataPath, 'scenarios', `${trialId}`)),
             ]);
         } catch (e) {
@@ -845,8 +853,8 @@ export class Factory {
             // if it exists, symlink the mod-settings.dat file
             // BUT WAIT!! We are changing this - just check if there's a <mod-list-id>.dat file in the mod-list folder
             // if there is, symlink it to the mod-settings.dat file
-            if (source?.modList?.id && await fs.exists(path.join(Factory.factoryDataPath, 'mods-cache', `${source.modList.id}.dat`)))
-                await fs.symlink(path.join(Factory.factoryDataPath, 'mods-cache', `${source.modList.id}.dat`), path.join(Factory.factoryDataPath, 'mod-settings.dat'));
+            if (source?.modList?.id && await fs.exists(path.join(Factory.modsCachePath, `${source.modList.id}.dat`)))
+                await fs.symlink(path.join(Factory.modsCachePath, `${source.modList.id}.dat`), path.join(Factory.factoryDataPath, 'mod-settings.dat'));
 
             // then, we need to write the mod-list.json file. Factorio uses this to load the actual list of mods
             await source.modList.writeModListFile(path.join(Factory.modsPath, 'mod-list.json'));
@@ -858,7 +866,7 @@ export class Factory {
             if (!Factory.modCache.has(modFiles[i]))
                 throw new Error(`Cannot symlink mod ${modFiles[i]} - not present in mods-cache!`);
 
-            await fs.symlink(path.join(Factory.factoryDataPath, 'mods-cache', modFiles[i]), path.join(Factory.factoryDataPath, 'mods', modFiles[i]));
+            await fs.symlink(path.join(Factory.modsCachePath, modFiles[i]), path.join(Factory.modsPath, modFiles[i]));
         }
     }
 
@@ -867,7 +875,7 @@ export class Factory {
             Factory.modCache.clear();
 
         // first off, read the entire list of files from our mods-cache folder
-        let files = await fs.readdir(path.join(Factory.factoryDataPath, 'mods-cache'));
+        let files = await fs.readdir(Factory.modsCachePath);
 
         // For each one, remove the '.zip' at the end and add to our cache
         for (let i = 0; i < files.length; i++) {
@@ -1106,7 +1114,7 @@ export class Factory {
 
     static async clearActiveMods() {
         // delete the mod-list.json file (and the modsettings.dat) from mods folder - this allows us to start fresh, with no mods by default
-        await fs.emptyDir(path.join(Factory.factoryDataPath, 'mods'));
+        await fs.emptyDir(Factory.modsPath);
     }
 
     // returns cached version of given mod
@@ -1151,7 +1159,7 @@ export class Factory {
 
     // lists both save files and folders - identified by the '.zip' extension
     static async listSaves() {
-        return await fs.readdir(path.join(Factory.factoryDataPath, 'saves'));
+        return await fs.readdir(path.join(Factory.savesPath));
     }
 
     /*
