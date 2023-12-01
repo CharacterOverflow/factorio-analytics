@@ -3,15 +3,12 @@ import * as http from 'http';
 import cors from 'cors'
 import fileUpload from "express-fileupload";
 import * as path from "path";
-import {ITrialParams, Trial} from "./Trial";
 import {Factory} from "./Factory";
-import {SavedTrial} from "./database/SavedTrial";
 import {FactoryDatabase} from "./FactoryDatabase";
-import {ISourceParams} from "./Source";
-import {SavedSource} from "./database/SavedSource";
-import {IModListParams, ModList} from "./ModList";
-import {SavedModList} from "./database/SavedModList";
 import fs from "fs-extra";
+import {ITrial, Trial} from "./Trial";
+import {ISource, Source} from "./Source";
+import {IModList, ModList} from "./ModList";
 
 export class FactoryBackend {
 
@@ -55,8 +52,8 @@ export class FactoryBackend {
         })
         FactoryBackend.app.post('/api/createTrial', (req, res) => {
             try {
-                let params: ITrialParams = req.body
-                let t = new SavedTrial(params);
+                let params: ITrial = req.body
+                let t = new Trial(params);
                 FactoryDatabase.saveTrial(t).then(() => {
                     res.send(t)
                 }).catch((err: any) => {
@@ -68,11 +65,9 @@ export class FactoryBackend {
         })
         FactoryBackend.app.post('/api/createSource', (req, res) => {
             try {
-                let params: ISourceParams = req.body
-                let s = new SavedSource(params);
-                s.ready.then(() => {
-                    FactoryDatabase.saveSource(s)
-                }).then(() => {
+                let params: ISource = req.body
+                let s = new Source(params);
+                FactoryDatabase.saveSource(s).then(() => {
                     res.send(s)
                 }).catch((err: any) => {
                     res.status(501).send(err)
@@ -83,8 +78,8 @@ export class FactoryBackend {
         })
         FactoryBackend.app.post('/api/createModList', (req, res) => {
             try {
-                let params: IModListParams = req.body
-                let m = new SavedModList(params);
+                let params: IModList = req.body
+                let m = new ModList(params);
                 FactoryDatabase.saveModList(m).then(() => {
                     res.send(m)
                 }).catch((err: any) => {
@@ -96,7 +91,7 @@ export class FactoryBackend {
         })
         FactoryBackend.app.post('/api/updateTrial', (req, res) => {
             try {
-                let trial: SavedTrial = new SavedTrial(null)
+                let trial: Trial = new Trial(null)
                 Object.assign(trial, req.body)
                 FactoryDatabase.saveTrial(trial).then((rettrial) => {
                     res.send(rettrial)
@@ -110,12 +105,10 @@ export class FactoryBackend {
         FactoryBackend.app.post('/api/updateSource', (req, res) => {
                 try {
                     try {
-                        let src: SavedSource = new SavedSource(null)
+                        let src: Source = new Source(null)
                         Object.assign(src, req.body)
-                        src.updateHash().then(() => {
-                            return FactoryDatabase.saveSource(src)
-                        }).then((retsrc) => {
-                            res.send(retsrc)
+                        FactoryDatabase.saveSource(src).then(() => {
+                            res.send(src)
                         }).catch((err: any) => {
                             res.status(501).send(err)
                         })
@@ -130,7 +123,7 @@ export class FactoryBackend {
         FactoryBackend.app.post('/api/updateModList', (req, res) => {
             try {
                 try {
-                    let modList: SavedModList = new SavedModList(null)
+                    let modList: ModList = new ModList(null)
                     Object.assign(modList, req.body)
                     FactoryDatabase.saveModList(modList).then(() => {
                         res.send(modList)
@@ -147,7 +140,7 @@ export class FactoryBackend {
         FactoryBackend.app.get('/api/listTrials', (req, res) => {
             try {
                 let count: number = req.query.count ? req.query.count : 100
-                FactoryDatabase.listTrials(count).then((trials: SavedTrial[]) => {
+                FactoryDatabase.listTrials(count).then((trials: Trial[]) => {
                     res.send(trials)
                 }).catch((err: any) => {
                     res.status(501).send(err)
@@ -159,7 +152,7 @@ export class FactoryBackend {
         FactoryBackend.app.get('/api/listSources', (req, res) => {
             try {
                 let count: number = req.query.count ? req.query.count : 100
-                FactoryDatabase.listSources(count).then((src: SavedSource[]) => {
+                FactoryDatabase.listSources(count).then((src: Source[]) => {
                     res.send(src)
                 }).catch((err: any) => {
                     res.status(501).send(err)
@@ -173,7 +166,7 @@ export class FactoryBackend {
                 let count: number = req.query.count ? req.query.count : 100
                 FactoryDatabase.FactoryDB.getRepository('SavedModList').find({
                     take: count,
-                }).then((modLists: SavedModList[]) => {
+                }).then((modLists: ModList[]) => {
                     res.send(modLists)
                 }).catch((err: any) => {
                     res.status(501).send(err)
@@ -197,7 +190,7 @@ export class FactoryBackend {
         FactoryBackend.app.get('/api/loadSource', (req, res) => {
             try {
                 let id: string = req.query.id
-                FactoryDatabase.loadSource(id).then((source: SavedSource) => {
+                FactoryDatabase.loadSource(id).then((source: Source) => {
                     res.send(source)
                 }).catch((err: any) => {
                     res.status(501).send(err)
@@ -251,7 +244,7 @@ export class FactoryBackend {
         FactoryBackend.app.post('/api/performTrialAction', async (req, res) => {
             try {
                 let execution: 'prepare' | 'compile' | 'run' | 'analyze' = req.body.execution
-                let trial: SavedTrial = await FactoryDatabase.loadTrial(req.body.trial)
+                let trial: Trial = await FactoryDatabase.loadTrial(req.body.trial)
                 if (execution == 'prepare') {
                     Factory.prepareTrial(trial).then(() => {
                         return FactoryDatabase.saveTrial(trial)

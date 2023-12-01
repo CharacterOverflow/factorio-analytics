@@ -1,11 +1,30 @@
 "use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var Trial_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Trial = void 0;
 const crypto_1 = require("crypto");
 const Source_1 = require("./Source");
+const typeorm_1 = require("typeorm");
 // one of the main classes needed to do much of anything
-class Trial {
+let Trial = Trial_1 = class Trial {
+    static ensureObject(trial) {
+        let a = trial;
+        if (a.dataFiles)
+            return a;
+        else
+            return new Trial_1(a);
+    }
     // filename results - generated from flags of which data to poll + id
+    // these files will be deleted after processing, so they may or may not exist. These are their original names however
     get dataFiles() {
         if (this.metadata)
             return {
@@ -18,43 +37,11 @@ class Trial {
             return undefined;
     }
     constructor(params = null) {
-        // current stage of the trial
-        this.stage = 'new';
-        // the length (in ticks) of the trial
-        this.length = 3600;
-        // how often to poll data, by category. This is 'every X ticks, poll data'. Defaults to 300, meaning every 5 seconds
-        this.tickInterval = 300;
-        // How many logistic bots to populate into roboports by default
-        this.initialBots = 150;
-        // Boolean flags for each 'data' category, used to determine which data to record
-        this.recordItems = true;
-        this.recordElectric = false; // electric needs to be looked at for accuracy
-        this.recordCircuits = false; // circuits needs to be looked at for accuracy
-        this.recordPollution = true;
-        this.recordSystem = false;
-        /*
-        * The following are used to track the state of the trial itself as its running, BEFORE a Dataset is created
-        *
-        * If these variables are set (along  with textResult), then the trial is considered complete and can be analyzed
-        *
-        * Once a trial has been run, it MUST be analyzed before being run again if you wish to do so
-        *
-        * Running a trial again without analyzing will clear the variables below
-        *
-        * */
-        this.createdAt = null;
-        this.startedRunAt = null;
-        this.startedAt = null;
-        this.endedAt = null;
-        // text result of trial - logs and/or system data
-        this.textLogs = null;
         // text result (raw) system data
         this.rawSystemText = null;
-        // metadata from execution
-        this.metadata = null;
         this.itemMetadata = null;
-        // electricMetadata: any = null;
-        // circuitMetadata: any = null;
+        this.electricMetadata = null;
+        this.circuitMetadata = null;
         this.pollutionMetadata = null;
         // In the event the constructor was called null, we will allow and still create an ID. ORMs can do this at times
         this.id = (0, crypto_1.randomUUID)();
@@ -79,7 +66,7 @@ class Trial {
         }
         else {
             // otherwise, we assume its already a source object
-            this.source = params.source;
+            this.source = Source_1.Source.ensureObject(params.source);
         }
         this.name = params.name;
         this.desc = params.desc;
@@ -95,18 +82,162 @@ class Trial {
         if (params.recordElectric)
             this.recordElectric = false; // params.recordElectric;
         if (params.recordCircuits)
-            this.recordCircuits = false; // params.recordCircuits;
+            this.recordCircuits = params.recordCircuits; // params.recordCircuits;
         if (params.recordPollution)
             this.recordPollution = params.recordPollution;
         if (params.recordSystem)
             this.recordSystem = params.recordSystem;
     }
-    get ready() {
-        return this.source.ready;
-    }
     setStage(stage) {
         this.stage = stage;
     }
-}
+};
 exports.Trial = Trial;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], Trial.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: false,
+        type: 'nvarchar'
+    }),
+    __metadata("design:type", String)
+], Trial.prototype, "stage", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => Source_1.Source),
+    __metadata("design:type", Source_1.Source)
+], Trial.prototype, "source", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: false,
+    }),
+    __metadata("design:type", Number)
+], Trial.prototype, "length", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: false,
+    }),
+    __metadata("design:type", Number)
+], Trial.prototype, "tickInterval", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: false,
+    }),
+    __metadata("design:type", Number)
+], Trial.prototype, "initialBots", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: false,
+    }),
+    __metadata("design:type", Boolean)
+], Trial.prototype, "recordItems", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: false,
+    }),
+    __metadata("design:type", Boolean)
+], Trial.prototype, "recordElectric", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: false,
+    }),
+    __metadata("design:type", Boolean)
+], Trial.prototype, "recordCircuits", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: false,
+    }),
+    __metadata("design:type", Boolean)
+], Trial.prototype, "recordPollution", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: false,
+    }),
+    __metadata("design:type", Boolean)
+], Trial.prototype, "recordSystem", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true,
+    }),
+    __metadata("design:type", String)
+], Trial.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true,
+    }),
+    __metadata("design:type", String)
+], Trial.prototype, "desc", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true,
+    }),
+    __metadata("design:type", Date)
+], Trial.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true
+    }),
+    __metadata("design:type", Date)
+], Trial.prototype, "startedRunAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true
+    }),
+    __metadata("design:type", Date)
+], Trial.prototype, "startedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true
+    }),
+    __metadata("design:type", Date
+    // text result of trial - logs and/or system data
+    )
+], Trial.prototype, "endedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true,
+        type: 'simple-array'
+    }),
+    __metadata("design:type", Array)
+], Trial.prototype, "textLogs", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true,
+        type: 'simple-json'
+    }),
+    __metadata("design:type", Object)
+], Trial.prototype, "metadata", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true,
+        type: 'simple-json'
+    }),
+    __metadata("design:type", Object)
+], Trial.prototype, "itemMetadata", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true,
+        type: 'simple-json'
+    }),
+    __metadata("design:type", Object)
+], Trial.prototype, "electricMetadata", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true,
+        type: 'simple-json'
+    }),
+    __metadata("design:type", Object)
+], Trial.prototype, "circuitMetadata", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true,
+        type: 'simple-json'
+    }),
+    __metadata("design:type", Object)
+], Trial.prototype, "pollutionMetadata", void 0);
+exports.Trial = Trial = Trial_1 = __decorate([
+    (0, typeorm_1.Entity)('trials'),
+    __metadata("design:paramtypes", [Object])
+], Trial);
 //# sourceMappingURL=Trial.js.map

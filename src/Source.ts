@@ -14,52 +14,72 @@
 *
 * */
 
-import {ModList} from "./ModList";
+import {IModList, ModList} from "./ModList";
 import fs from "fs-extra";
 import crypto from "crypto";
+import {Column, Entity, ManyToOne, PrimaryColumn} from "typeorm";
 
 /*
 * Having either blueprint or saveGamePath is  required. one or the other! If both are passed in, an error will be thrown
 * */
-export interface ISourceParams {
+
+export class ISource {
+    id?: string;
     blueprint?: string;
     saveGamePath?: string;
     name?: string;
     desc?: string;
     tags?: string[];
-    modList?: ModList;
+    modList?: ModList | IModList;
 }
 
-export class Source {
+@Entity('sources')
+export class Source implements ISource {
 
-    // This ID is different - is the HASHED ID of the source, not generated
-    // this is so that we can match identical sources together for higher tier analysis
+    @PrimaryColumn()
     id: string;
-    variant: string
 
-    // DESCRIPTIVE / ORGANIZATIONAL HELPERS
+    @Column({
+        nullable: false,
+    })
+    variant: string;
+
+    @Column({
+        nullable: true,
+        type: 'nvarchar'
+    })
     name?: string;
+
+    @Column({
+        nullable: true,
+        type: 'nvarchar'
+    })
     desc?: string;
-    tags: string[] = [];
 
-    // MODLIST - LOOK HERE FOR MORE MOD SETUP INFO, MODLIST CONTROLS ALL MODS
-    modList?: ModList;
+    @Column({
+        nullable: false,
+        type: 'simple-array'
+    })
+    tags: string[] = []
 
-    // 'text' holds  the RAW data of the source - either path to savegame, or blueprint string
+    @ManyToOne(() => ModList)
+    modList?: ModList
+
+    @Column({
+        nullable: false,
+        type: 'nvarchar'
+    })
     text: string;
 
-    protected _hashFinished: Promise<boolean> = null;
-
-    get ready(): Promise<boolean> {
-        if (this._hashFinished == null)
-            return new Promise<boolean>((resolve) => {
-                resolve(false)
-            })
+    static ensureObject(source: ISource): Source {
+        let a = source as Source
+        if (a.updateHash)
+            return a;
         else
-            return this._hashFinished;
+            return new Source(source)
     }
 
-    constructor(params: ISourceParams = null, avoidHash = false) {
+    constructor(params: ISource = null) {
         // if no params, just return empty. Used as template for Object.assign to take over
         if (!params)
             return;
@@ -67,7 +87,7 @@ export class Source {
         this.name = params.name;
         this.desc = params.desc;
         this.tags = params.tags ? params.tags : [];
-        this.modList = params.modList;
+        this.modList = ModList.ensureObject(params.modList);
         if (params.blueprint && params.saveGamePath)
             throw new Error('Cannot have both blueprint and savegame path specified in creating a Source');
 
@@ -79,26 +99,13 @@ export class Source {
             this.text = params.saveGamePath
         } else
             throw new Error('Must have either blueprint or savegame path specified in creating a Source');
-
-        if (!avoidHash)
-            this._hashFinished = this.updateHash();
+        this.updateHash()
     }
 
-    async updateHash(): Promise<boolean> {
+    updateHash(): boolean {
         if (this.text) {
-            if (this.variant == 'blueprint') {
-                this.id = crypto.createHash('sha256').update(this.text).digest('hex');
-                return true;
-            } else if (this.variant == 'savegame') {
-                // DO I NEED TO HASH SAVEGAME?
-                // IF USER UPLOADS A NEW SAVE, CAN RENAME IT EASILY, THEN USE NEW NAME. CAN JUST HASH SAVEGAME PATH!
-                // will change this if it becomes an issue
-                let buffer = await fs.readFile(this.text);
-                this.id = crypto.createHash('sha256').update(buffer).digest('hex');
-                return true
-            } else {
-                throw new Error('Invalid variant for Source');
-            }
+            this.id = crypto.createHash('sha256').update(this.text).digest('hex');
+            return true;
         } else {
             // need to return false here - we are likely on the web!!
             return false

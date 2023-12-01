@@ -47,10 +47,10 @@ const os = __importStar(require("os"));
 const FactorioApi_1 = require("./FactorioApi");
 const decompress_1 = __importDefault(require("decompress"));
 const child_process_1 = require("child_process");
+const Trial_1 = require("./Trial");
 const process = __importStar(require("process"));
+const Dataset_1 = require("./Dataset");
 const lodash_1 = __importDefault(require("lodash"));
-const SavedTrial_1 = require("./database/SavedTrial");
-const SavedDataset_1 = require("./database/SavedDataset");
 const FactoryDatabase_1 = require("./FactoryDatabase");
 /*
 * Trial Prepare, Compile, Run, and Analyze
@@ -294,6 +294,7 @@ class Factory {
         });
     }
     static analyzeTrial(t, saveToDB = false) {
+        var _a, _b, _c, _d;
         return __awaiter(this, void 0, void 0, function* () {
             if (!(t === null || t === void 0 ? void 0 : t.id))
                 throw new Error('Cannot analyze trial! ID is missing, or trial is null');
@@ -305,9 +306,12 @@ class Factory {
                 let rObj = {};
                 if (t.recordItems) {
                     Logging_1.Logging.log('info', { message: `Analyzing item data for trial ${t.id}` });
-                    rObj.itemRecords = yield Factory.parseItemDataFile(path_1.default.join(Factory.scriptOutputPath, 'data', t.dataFiles.items), t);
-                    if (saveToDB && t instanceof SavedTrial_1.SavedTrial)
-                        yield FactoryDatabase_1.FactoryDatabase.insertFlowRecords(rObj.itemRecords);
+                    rObj.items = {
+                        data: yield Factory.parseItemDataFile(path_1.default.join(Factory.scriptOutputPath, 'data', t.dataFiles.items), t),
+                        trial: t
+                    };
+                    if (saveToDB && t instanceof Trial_1.Trial)
+                        yield FactoryDatabase_1.FactoryDatabase.insertItemRecords(rObj.items.data);
                 }
                 /*if (t.recordElectric) {
                     Logging.log('info', {message: `Analyzing electric data for trial ${t.id}`});
@@ -317,25 +321,34 @@ class Factory {
                 }
                 if (t.recordCircuits) {
                     Logging.log('info', {message: `Analyzing circuit data for trial ${t.id}`});
-                    let circuitDataset = new CircuitDataset(t, path.join(Factory.scriptOutputPath, 'data', t.dataFiles.circuits))
-                    await circuitDataset.parseData()
-                    rObj.circuits = circuitDataset;
+                    rObj.circuits = {
+                        data: await Factory.parseCircuitDataFile(path.join(Factory.scriptOutputPath, 'data', t.dataFiles.circuits), t),
+                        trial: t
+                    }
+                    if (saveToDB && t instanceof Trial)
+                        await FactoryDatabase.insertCircuitRecords((rObj.circuits?.data ?? [])as GameFlowCircuitRecord[])
                 }*/
                 if (t.recordPollution) {
                     Logging_1.Logging.log('info', { message: `Analyzing pollution data for trial ${t.id}` });
-                    rObj.pollutionRecords = yield Factory.parsePollutionDataFile(path_1.default.join(Factory.scriptOutputPath, 'data', t.dataFiles.pollution), t);
-                    if (saveToDB && t instanceof SavedTrial_1.SavedTrial)
-                        yield FactoryDatabase_1.FactoryDatabase.insertPollutionRecords(rObj.pollutionRecords);
+                    rObj.pollution = {
+                        data: yield Factory.parsePollutionDataFile(path_1.default.join(Factory.scriptOutputPath, 'data', t.dataFiles.pollution), t),
+                        trial: t
+                    };
+                    if (saveToDB && t instanceof Trial_1.Trial)
+                        yield FactoryDatabase_1.FactoryDatabase.insertPollutionRecords(((_b = (_a = rObj.pollution) === null || _a === void 0 ? void 0 : _a.data) !== null && _b !== void 0 ? _b : []));
                 }
                 if (t.recordSystem) {
                     Logging_1.Logging.log('info', { message: `Analyzing system data for trial ${t.id}` });
-                    rObj.systemRecords = Factory.parseSystemData(t.rawSystemText, t);
-                    if (saveToDB && t instanceof SavedTrial_1.SavedTrial)
-                        yield FactoryDatabase_1.FactoryDatabase.insertSystemRecords(rObj.systemRecords);
+                    rObj.system = {
+                        data: Factory.parseSystemData(t.rawSystemText, t),
+                        trial: t
+                    };
+                    if (saveToDB && t instanceof Trial_1.Trial)
+                        yield FactoryDatabase_1.FactoryDatabase.insertSystemRecords(((_d = (_c = rObj.system) === null || _c === void 0 ? void 0 : _c.data) !== null && _d !== void 0 ? _d : []));
                 }
                 yield Factory.deleteScriptOutputFiles(t);
                 yield Factory.deleteSaveFileClutter(t);
-                if (saveToDB && t instanceof SavedTrial_1.SavedTrial)
+                if (saveToDB && t instanceof Trial_1.Trial)
                     yield FactoryDatabase_1.FactoryDatabase.saveTrial(t, true);
                 t.setStage('analyzed');
                 return rObj;
@@ -424,8 +437,8 @@ class Factory {
                 };
             }
             // lastly, if  our trial is a 'SavedTrial' type, we will make sure we convert all these records into SavedFlowRecords
-            if (trial instanceof SavedTrial_1.SavedTrial) {
-                results = yield SavedDataset_1.SavedFlowRecord.fromRecords(results, trial.id);
+            if (trial instanceof Trial_1.Trial) {
+                results = Dataset_1.GameFlowItemRecord.fromRecords(results, trial.id);
             }
             trial.itemMetadata = metadata;
             return results;
@@ -452,12 +465,13 @@ class Factory {
                 // each line is a object with 1 field - pollution. This is a float
                 let lData = JSON.parse(l);
                 results.push({
+                    label: 'pollution',
                     tick: (i + 1) * trial.tickInterval,
                     count: lData.pollution
                 });
             }
-            if (trial instanceof SavedTrial_1.SavedTrial) {
-                results = SavedDataset_1.SavedPollutionRecord.fromRecords(results, trial.id);
+            if (trial instanceof Trial_1.Trial) {
+                results = Dataset_1.GameFlowPollutionRecord.fromRecords(results, trial.id);
             }
             return results;
         });
@@ -477,6 +491,7 @@ class Factory {
             if (!currentTickItem) {
                 currentSetCount = 1;
                 currentTickItem = {
+                    label: 'system',
                     tick: Number.parseInt(data[0].substring(1)),
                     timestamp: Number.parseInt(data[1]),
                     wholeUpdate: Number.parseInt(data[2]),
@@ -597,8 +612,8 @@ class Factory {
             }
         }
         // what do we need for metadata? Include here
-        if (trial instanceof SavedTrial_1.SavedTrial) {
-            results = SavedDataset_1.SavedSystemRecord.fromRecords(results, trial.id);
+        if (trial instanceof Trial_1.Trial) {
+            results = Dataset_1.GameFlowSystemRecord.fromRecords(results, trial.id);
         }
         return results;
     }
@@ -709,6 +724,7 @@ class Factory {
         });
     }
     static applyModsOfSource(source) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
             /*
             * We assume that all mods listed exist in the mods-cache - if we try to symlink one and it doesn't exist, throw error
@@ -719,8 +735,10 @@ class Factory {
                 // we now need to symlink all the mods first
                 yield Factory.symlinkModFiles(source.modList.modFileNames);
                 // if it exists, symlink the mod-settings.dat file
-                if (source.modList.settingsFile && !(yield fs_extra_1.default.exists(path_1.default.join(Factory.factoryDataPath, 'mod-settings.dat'))))
-                    yield fs_extra_1.default.symlink(source.modList.settingsFile, path_1.default.join(Factory.factoryDataPath, 'mod-settings.dat'));
+                // BUT WAIT!! We are changing this - just check if there's a <mod-list-id>.dat file in the mod-list folder
+                // if there is, symlink it to the mod-settings.dat file
+                if (((_a = source === null || source === void 0 ? void 0 : source.modList) === null || _a === void 0 ? void 0 : _a.id) && (yield fs_extra_1.default.exists(path_1.default.join(Factory.factoryDataPath, 'mods-cache', `${source.modList.id}.dat`))))
+                    yield fs_extra_1.default.symlink(path_1.default.join(Factory.factoryDataPath, 'mods-cache', `${source.modList.id}.dat`), path_1.default.join(Factory.factoryDataPath, 'mod-settings.dat'));
                 // then, we need to write the mod-list.json file. Factorio uses this to load the actual list of mods
                 yield source.modList.writeModListFile(path_1.default.join(Factory.modsPath, 'mod-list.json'));
             }

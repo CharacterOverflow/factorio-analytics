@@ -1,38 +1,52 @@
+import {Trial} from "./Trial";
+import {Column, Entity, PrimaryColumn} from "typeorm";
 
-export interface IDatasetCombinedResults {
-    itemRecords?: IGameFlowTick[];
-    electricRecords?: IGameElectricTick[];
-    circuitRecords?: IGameCircuitTick[];
-    pollutionRecords?: IGamePollutionTick[];
-    systemRecords?: ISystemTick[];
+export interface IGameFlowItemResults {
+    data: IGameFlowItemTick[];
+    trial: Trial
 }
 
-export interface IGameFlowTick {
-    cons: number;
-    prod: number;
-    // Label represents the 'name' of the item, such as 'iron-plate' or 'solar-panel' for elec
+export interface IGameFlowElectricResults {
+    data: IGameFlowElectricTick[];
+    trial: Trial
+}
+
+export interface IGameFlowCircuitResults {
+    data: IGameFlowCircuitTick[];
+    trial: Trial
+}
+
+export interface IGameFlowPollutionResults {
+    data: IGameFlowPollutionTick[];
+    trial: Trial
+}
+
+export interface IGameFlowSystemResults {
+    data: IGameFlowSystemTick[];
+    trial: Trial
+}
+
+
+export interface IGameFlow {
     label: string;
     tick: number;
 }
 
-export interface IGameElectricTick {
+export interface IGameFlowItemTick extends IGameFlow {
+    cons: number;
+    prod: number;
+}
+
+export interface IGameFlowElectricTick extends IGameFlow {
     networkId?: number;
     cons: number;
     prod: number;
-    label: string
-    tick: number;
 }
 
-export interface IGameCircuitTick {
-    // this represents a single 'tick' of a circuit network. Each network has its own ID
+export interface IGameFlowCircuitTick extends IGameFlow {
     circuitId: number;
     color: string;
-    tick: number;
-    signal: string;
     count: number;
-
-    // 'signals' is the actual array of signals in this network
-    //signals: IGameCircuitSignal[];
 }
 /*
 export interface IGameCircuitSignal {
@@ -45,14 +59,12 @@ export interface IGameCircuitSignalType {
     name: string;
 }*/
 
-export interface IGamePollutionTick {
+export interface IGameFlowPollutionTick extends IGameFlow {
     count: number;
-    tick: number;
 }
 
 
-export interface ISystemTick {
-    tick: number
+export interface IGameFlowSystemTick extends IGameFlow {
     timestamp: number
     wholeUpdate: number
     latencyUpdate: number
@@ -85,4 +97,298 @@ export interface ISystemTick {
     luaGarbageIncremental: number
     chartUpdate: number
     scriptUpdate: number
+}
+
+
+@Entity('dataset_items')
+export class GameFlowItemRecord implements IGameFlowItemTick {
+
+    @PrimaryColumn()
+    trialId: string;
+
+    @PrimaryColumn()
+    label: string;
+
+    @PrimaryColumn({type: 'integer'})
+    tick: number;
+
+    @Column({type: 'integer'})
+    cons: number;
+
+    @Column({type: 'integer'})
+    prod: number;
+
+    constructor(params: IGameFlowItemTick, trialId: string) {
+        if (!params)
+            return
+
+        this.trialId = trialId
+        this.label = params.label;
+        this.tick = params.tick;
+        this.cons = params.cons;
+        this.prod = params.prod;
+    }
+
+    static fromRecords(records: IGameFlowItemTick[], trialId: string): GameFlowItemRecord[] {
+        // create a 'save' record for all records here
+        return records.map(record => new GameFlowItemRecord(record, trialId))
+    }
+
+}
+
+@Entity('dataset_electric')
+export class GameFlowElectricRecord implements IGameFlowElectricTick {
+
+    @PrimaryColumn()
+    trialId: string;
+
+    @PrimaryColumn()
+    label: string;
+
+    @PrimaryColumn({type: 'integer'})
+    tick: number;
+
+    @PrimaryColumn({type: 'integer'})
+    networkId: number;
+
+    @Column()
+    cons: number;
+
+    @Column()
+    prod: number;
+
+    constructor(params: IGameFlowElectricTick, trialId: string) {
+        if (!params)
+            return
+
+        this.trialId = trialId
+        this.label = params.label;
+        this.tick = params.tick;
+        this.networkId = params.networkId;
+        this.cons = params.cons;
+        this.prod = params.prod;
+    }
+
+}
+
+@Entity('dataset_circuits')
+export class GameFlowCircuitRecord implements IGameFlowCircuitTick {
+
+    @PrimaryColumn()
+    trialId: string;
+
+    @PrimaryColumn()
+    circuitId: number;
+
+    @PrimaryColumn({type: 'integer'})
+    tick: number;
+
+    @PrimaryColumn()
+    color: string;
+
+    @PrimaryColumn()
+    label: string
+
+    @Column({type: 'integer'})
+    count: number;
+
+    //  implement in the future
+    constructor(params: IGameFlowCircuitTick, trialId: string) {
+        if (!params)
+            return
+
+        this.trialId = trialId
+        this.circuitId = params.circuitId;
+        this.tick = params.tick;
+        this.color = params.color;
+        this.label = params.label;
+        this.count = params.count;
+    }
+
+}
+
+@Entity('dataset_pollution')
+export class GameFlowPollutionRecord implements IGameFlowPollutionTick {
+
+    @PrimaryColumn()
+    trialId: string;
+
+    @PrimaryColumn()
+    label: string;
+
+    @PrimaryColumn({type: 'integer'})
+    tick: number;
+
+    @Column({type: 'float'})
+    count: number;
+
+    constructor(params: IGameFlowPollutionTick, trialId: string) {
+        if (!params)
+            return
+
+        this.trialId = trialId
+        this.label = params?.label ?? 'Pollution'
+        this.tick = params.tick;
+        this.count = params.count;
+    }
+
+    static fromRecords(records: IGameFlowPollutionTick[], trialId: string): GameFlowPollutionRecord[] {
+        return records.map(record => new GameFlowPollutionRecord(record, trialId))
+    }
+}
+
+@Entity('dataset_system')
+export class GameFlowSystemRecord implements IGameFlowSystemTick {
+
+    @PrimaryColumn()
+    trialId: string;
+
+    @Column()
+    label: string;
+
+    @PrimaryColumn({type: 'integer'})
+    tick: number;
+
+    @Column()
+    timestamp: number;
+
+    @Column()
+    wholeUpdate: number;
+
+    @Column()
+    latencyUpdate: number;
+
+    @Column()
+    gameUpdate: number;
+
+    @Column()
+    circuitNetworkUpdate: number;
+
+    @Column()
+    transportLinesUpdate: number;
+
+    @Column()
+    fluidsUpdate: number;
+
+    @Column()
+    heatManagerUpdate: number;
+
+    @Column()
+    entityUpdate: number;
+
+    @Column()
+    particleUpdate: number;
+
+    @Column()
+    mapGenerator: number;
+
+    @Column()
+    mapGeneratorBasicTilesSupportCompute: number;
+
+    @Column()
+    mapGeneratorBasicTilesSupportApply: number;
+
+    @Column()
+    mapGeneratorCorrectedTilesPrepare: number;
+
+    @Column()
+    mapGeneratorCorrectedTilesCompute: number;
+
+    @Column()
+    mapGeneratorCorrectedTilesApply: number;
+
+    @Column()
+    mapGeneratorVariations: number;
+
+    @Column()
+    mapGeneratorEntitiesPrepare: number;
+
+    @Column()
+    mapGeneratorEntitiesCompute: number;
+
+    @Column()
+    mapGeneratorEntitiesApply: number;
+
+    @Column()
+    crcComputation: number;
+
+    @Column()
+    electricNetworkUpdate: number;
+
+    @Column()
+    logisticManagerUpdate: number;
+
+    @Column()
+    constructionManagerUpdate: number;
+
+    @Column()
+    pathFinder: number;
+
+    @Column()
+    trains: number;
+
+    @Column()
+    trainPathFinder: number;
+
+    @Column()
+    commander: number;
+
+    @Column()
+    chartRefresh: number;
+
+    @Column()
+    luaGarbageIncremental: number;
+
+    @Column()
+    chartUpdate: number;
+
+    @Column()
+    scriptUpdate: number;
+
+    constructor(params: IGameFlowSystemTick, trialId: string) {
+        if (!params)
+            return
+
+        this.trialId = trialId
+        this.label = params?.label ?? 'System'
+        this.tick = params.tick;
+        this.timestamp = params.timestamp;
+        this.wholeUpdate = params.wholeUpdate;
+        this.latencyUpdate = params.latencyUpdate;
+        this.gameUpdate = params.gameUpdate;
+        this.circuitNetworkUpdate = params.circuitNetworkUpdate;
+        this.transportLinesUpdate = params.transportLinesUpdate;
+        this.fluidsUpdate = params.fluidsUpdate;
+        this.heatManagerUpdate = params.heatManagerUpdate;
+        this.entityUpdate = params.entityUpdate;
+        this.particleUpdate = params.particleUpdate;
+        this.mapGenerator = params.mapGenerator;
+        this.mapGeneratorBasicTilesSupportCompute = params.mapGeneratorBasicTilesSupportCompute;
+        this.mapGeneratorBasicTilesSupportApply = params.mapGeneratorBasicTilesSupportApply;
+        this.mapGeneratorCorrectedTilesPrepare = params.mapGeneratorCorrectedTilesPrepare;
+        this.mapGeneratorCorrectedTilesCompute = params.mapGeneratorCorrectedTilesCompute;
+        this.mapGeneratorCorrectedTilesApply = params.mapGeneratorCorrectedTilesApply;
+        this.mapGeneratorVariations = params.mapGeneratorVariations;
+        this.mapGeneratorEntitiesPrepare = params.mapGeneratorEntitiesPrepare;
+        this.mapGeneratorEntitiesCompute = params.mapGeneratorEntitiesCompute;
+        this.mapGeneratorEntitiesApply = params.mapGeneratorEntitiesApply;
+        this.crcComputation = params.crcComputation;
+        this.electricNetworkUpdate = params.electricNetworkUpdate;
+        this.logisticManagerUpdate = params.logisticManagerUpdate;
+        this.constructionManagerUpdate = params.constructionManagerUpdate;
+        this.pathFinder = params.pathFinder;
+        this.trains = params.trains;
+        this.trainPathFinder = params.trainPathFinder;
+        this.commander = params.commander;
+        this.chartRefresh = params.chartRefresh;
+        this.luaGarbageIncremental = params.luaGarbageIncremental;
+        this.chartUpdate = params.chartUpdate;
+        this.scriptUpdate = params.scriptUpdate;
+
+    }
+
+    static fromRecords(records: IGameFlowSystemTick[], trialId: string): GameFlowSystemRecord[] {
+        return records.map(record => new GameFlowSystemRecord(record, trialId))
+    }
+
 }

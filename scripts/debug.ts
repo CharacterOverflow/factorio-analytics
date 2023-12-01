@@ -17,8 +17,6 @@ import {Factory} from "../src/Factory";
 import {ModList} from "../src/ModList";
 import {Source} from "../src/Source";
 import {FactoryDatabase} from "../src/FactoryDatabase";
-import {SavedTrial} from "../src/database/SavedTrial";
-import {SavedSource} from "../src/database/SavedSource";
 import {FactoryBackend} from "../src/FactoryBackend";
 
 dotenv.config();
@@ -48,6 +46,9 @@ async function main() {
     })
     await FactoryDatabase.initialize()
     await FactoryBackend.startServer();
+
+    // try running a basic new trial
+
 
     // lets try running a blueprint test
     // let bp = fs.readFileSync(bpFile, 'utf8');

@@ -1,26 +1,43 @@
 import fs from "fs-extra";
 import crypto, {randomUUID} from "crypto";
-import {SavedModList} from "./database/SavedModList";
+import {Column, Entity, PrimaryColumn} from "typeorm";
 
-export interface IModListParams {
+export interface IModList {
+    id?: string
     name?: string
     desc?: string
-    mods?: string[]
-    settingsFile?: string
+    mods: string[]
 }
 
-export class ModList {
+@Entity('modlists')
+export class ModList implements  IModList {
 
-    // id is determined by the hash of the mods array
+    @PrimaryColumn()
     id?: string;
 
+    @Column({
+        nullable: true
+    })
     name?: string;
+
+    @Column({
+        nullable: true
+    })
     desc?: string;
 
+    @Column({
+        nullable: false,
+        type: 'simple-array'
+    })
     mods: string[] = [];
 
-    // OPTIONAL - if set, points to the absolute path of a mod-settings.dat file. Is copied whenever this modlist is applied
-    settingsFile?: string;
+    static ensureObject(modList: IModList): ModList {
+        let a = modList as ModList
+        if (a.modFileNames)
+            return a;
+        else
+            return new ModList(modList)
+    }
 
     static async fromModListFile(filepath: string): Promise<ModList> {
         let fd = await fs.readJSON(filepath)
@@ -61,14 +78,13 @@ export class ModList {
 
     // takes in an array of mod names, supports many naming types
     // converts name into a name+version object, if no version is specified it will be queried from the API, and the latest version will be locked in
-    constructor(params: IModListParams) {
+    constructor(params: IModList) {
         if (!params)
             return;
 
         this.id = randomUUID();
         this.name = params.name;
         this.desc = params.desc;
-        this.settingsFile = params.settingsFile;
 
         if (!params.mods)
             params.mods = []

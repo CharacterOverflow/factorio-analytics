@@ -13,14 +13,16 @@ import {Trial} from "./Trial";
 import * as process from "process";
 import {ModList} from "./ModList";
 import {
-    IDatasetCombinedResults, IGameFlowTick, IGamePollutionTick, ISystemTick,
+    GameFlowCircuitRecord, GameFlowItemRecord,
+    GameFlowPollutionRecord, GameFlowSystemRecord,
+    IGameFlowCircuitResults, IGameFlowCircuitTick,
+    IGameFlowElectricResults,
+    IGameFlowItemResults,
+    IGameFlowItemTick, IGameFlowPollutionResults, IGameFlowPollutionTick, IGameFlowSystemResults, IGameFlowSystemTick,
 } from "./Dataset";
 import _ from "lodash";
 import {Source} from "./Source";
-import {SavedTrial} from "./database/SavedTrial";
-import {SavedFlowRecord, SavedPollutionRecord, SavedSystemRecord} from "./database/SavedDataset";
 import {FactoryDatabase} from "./FactoryDatabase";
-import {FactoryBackend} from "./FactoryBackend";
 
 /*
 * Listing out the various ENV settings that can be set...
@@ -343,7 +345,13 @@ export class Factory {
 
     }
 
-    public static async analyzeTrial(t: Trial, saveToDB: boolean = false): Promise<IDatasetCombinedResults> {
+    public static async analyzeTrial(t: Trial, saveToDB: boolean = false): Promise<{
+        items?: IGameFlowItemResults
+        electric?: IGameFlowElectricResults
+        circuits?: IGameFlowCircuitResults
+        pollution?: IGameFlowPollutionResults
+        system?: IGameFlowSystemResults
+    }> {
         if (!t?.id)
             throw new Error('Cannot analyze trial! ID is missing, or trial is null');
 
@@ -354,13 +362,22 @@ export class Factory {
         t.setStage('analyzing');
 
         try {
-            let rObj: IDatasetCombinedResults = {};
+            let rObj: {
+                items?: IGameFlowItemResults
+                electric?: IGameFlowElectricResults
+                circuits?: IGameFlowCircuitResults
+                pollution?: IGameFlowPollutionResults
+                system?: IGameFlowSystemResults
+            } = {};
 
             if (t.recordItems) {
                 Logging.log('info', {message: `Analyzing item data for trial ${t.id}`});
-                rObj.itemRecords = await Factory.parseItemDataFile(path.join(Factory.scriptOutputPath, 'data', t.dataFiles.items), t)
-                if (saveToDB && t instanceof SavedTrial)
-                    await FactoryDatabase.insertFlowRecords(rObj.itemRecords as SavedFlowRecord[])
+                rObj.items = {
+                    data: await Factory.parseItemDataFile(path.join(Factory.scriptOutputPath, 'data', t.dataFiles.items), t),
+                    trial: t
+                }
+                if (saveToDB && t instanceof Trial)
+                    await FactoryDatabase.insertItemRecords(rObj.items.data as GameFlowItemRecord[])
             }
             /*if (t.recordElectric) {
                 Logging.log('info', {message: `Analyzing electric data for trial ${t.id}`});
@@ -370,26 +387,35 @@ export class Factory {
             }
             if (t.recordCircuits) {
                 Logging.log('info', {message: `Analyzing circuit data for trial ${t.id}`});
-                let circuitDataset = new CircuitDataset(t, path.join(Factory.scriptOutputPath, 'data', t.dataFiles.circuits))
-                await circuitDataset.parseData()
-                rObj.circuits = circuitDataset;
+                rObj.circuits = {
+                    data: await Factory.parseCircuitDataFile(path.join(Factory.scriptOutputPath, 'data', t.dataFiles.circuits), t),
+                    trial: t
+                }
+                if (saveToDB && t instanceof Trial)
+                    await FactoryDatabase.insertCircuitRecords((rObj.circuits?.data ?? [])as GameFlowCircuitRecord[])
             }*/
             if (t.recordPollution) {
                 Logging.log('info', {message: `Analyzing pollution data for trial ${t.id}`});
-                rObj.pollutionRecords = await Factory.parsePollutionDataFile(path.join(Factory.scriptOutputPath, 'data', t.dataFiles.pollution), t)
-                if (saveToDB && t instanceof SavedTrial)
-                    await FactoryDatabase.insertPollutionRecords(rObj.pollutionRecords as SavedPollutionRecord[])
+                rObj.pollution = {
+                    data: await Factory.parsePollutionDataFile(path.join(Factory.scriptOutputPath, 'data', t.dataFiles.pollution), t),
+                    trial: t
+                }
+                if (saveToDB && t instanceof Trial)
+                    await FactoryDatabase.insertPollutionRecords((rObj.pollution?.data ?? []) as GameFlowPollutionRecord[])
             }
             if (t.recordSystem) {
                 Logging.log('info', {message: `Analyzing system data for trial ${t.id}`});
-                rObj.systemRecords = Factory.parseSystemData(t.rawSystemText, t)
-                if (saveToDB && t instanceof SavedTrial)
-                    await FactoryDatabase.insertSystemRecords(rObj.systemRecords as SavedSystemRecord[])
+                rObj.system = {
+                    data: Factory.parseSystemData(t.rawSystemText, t),
+                    trial: t
+                }
+                if (saveToDB && t instanceof Trial)
+                    await FactoryDatabase.insertSystemRecords((rObj.system?.data ?? []) as GameFlowSystemRecord[])
             }
             await Factory.deleteScriptOutputFiles(t);
             await Factory.deleteSaveFileClutter(t);
-            if (saveToDB && t instanceof SavedTrial)
-                await FactoryDatabase.saveTrial(t as SavedTrial, true)
+            if (saveToDB && t instanceof Trial)
+                await FactoryDatabase.saveTrial(t as Trial, true)
 
             t.setStage('analyzed');
 
@@ -401,10 +427,10 @@ export class Factory {
         }
     }
 
-    public static async parseItemDataFile(filepath: string, trial: Trial) {
+    public static async parseItemDataFile(filepath: string, trial: Trial): Promise<IGameFlowItemTick[]> {
         let raw = await fs.readFile(filepath, 'utf-8');
 
-        let results: IGameFlowTick[] = [];
+        let results: IGameFlowItemTick[] = [];
         let lines = raw.split('\n');
         for (let i = 0; i < lines.length - 1; i++) {
             let l = lines[i];
@@ -420,7 +446,7 @@ export class Factory {
             for (let c of co) {
 
                 // the item record if it exists
-                let ir: IGameFlowTick = itemMap[c];
+                let ir: IGameFlowItemTick = itemMap[c];
 
                 if (ir) {
                     // Update the cons value, as there is nothing else it can be.
@@ -432,7 +458,7 @@ export class Factory {
                         tick: (i + 1) * trial.tickInterval,
                         cons: lineParsed.cons[c],
                         prod: 0,
-                    } as IGameFlowTick;
+                    } as IGameFlowItemTick;
                 }
             }
 
@@ -440,7 +466,7 @@ export class Factory {
             for (let p of po) {
 
                 // the item record if it exists
-                let ir: IGameFlowTick = itemMap[p];
+                let ir: IGameFlowItemTick = itemMap[p];
 
                 if (ir) {
                     // Update the cons value, as there is nothing else it can be.
@@ -452,7 +478,7 @@ export class Factory {
                         tick: (i + 1) * trial.tickInterval,
                         cons: 0,
                         prod: lineParsed.prod[p],
-                    } as IGameFlowTick;
+                    } as IGameFlowItemTick;
                 }
             }
 
@@ -487,8 +513,8 @@ export class Factory {
             }
         }
         // lastly, if  our trial is a 'SavedTrial' type, we will make sure we convert all these records into SavedFlowRecords
-        if (trial instanceof SavedTrial) {
-            results = await SavedFlowRecord.fromRecords(results, trial.id);
+        if (trial instanceof Trial) {
+            results = GameFlowItemRecord.fromRecords(results, trial.id);
         }
         trial.itemMetadata = metadata;
         return results;
@@ -498,14 +524,14 @@ export class Factory {
         throw new Error('Electric data not implemented yet - need to analyze data output as it doesnt follow in-game values');
     }
 
-    public static async parseCircuitDataFile(filepath: string, trial: Trial) {
+    public static async parseCircuitDataFile(filepath: string, trial: Trial): Promise<IGameFlowCircuitTick[]> {
         throw new Error('Circuit data not implemented yet - need to ensure accuracy and prepare for future circuit changes');
     }
 
-    public static async parsePollutionDataFile(filepath: string, trial: Trial) {
+    public static async parsePollutionDataFile(filepath: string, trial: Trial): Promise<IGameFlowPollutionTick[]> {
         let raw = await fs.readFile(filepath, 'utf-8');
 
-        let results: IGamePollutionTick[] = [];
+        let results: IGameFlowPollutionTick[] = [];
         let lines = raw.split('\n');
 
         // Now, need to sort through the list of lines and parse out the data
@@ -515,24 +541,25 @@ export class Factory {
             // each line is a object with 1 field - pollution. This is a float
             let lData = JSON.parse(l);
             results.push({
+                label: 'pollution',
                 tick: (i + 1) * trial.tickInterval,
                 count: lData.pollution
             })
         }
-        if (trial instanceof SavedTrial) {
-            results = SavedPollutionRecord.fromRecords(results, trial.id);
+        if (trial instanceof Trial) {
+            results = GameFlowPollutionRecord.fromRecords(results, trial.id);
         }
 
         return results;
     }
 
-    public static parseSystemData(raw: string, trial: Trial) {
+    public static parseSystemData(raw: string, trial: Trial): IGameFlowSystemTick[] {
         let lines = raw.split('\n');
         // First line is headers, so we remove it
         lines.shift();
         // Now we have an array of strings, each string being a line of csv data
-        let results: ISystemTick[] = [];
-        let currentTickItem: ISystemTick = null;
+        let results: IGameFlowSystemTick[] = [];
+        let currentTickItem: IGameFlowSystemTick = null;
         let currentSetCount: number = 0;
         let runningTimestamp: number = 0;
         for (let l of lines) {
@@ -541,6 +568,7 @@ export class Factory {
             if (!currentTickItem) {
                 currentSetCount = 1;
                 currentTickItem = {
+                    label: 'system',
                     tick: Number.parseInt(data[0].substring(1)),
                     timestamp: Number.parseInt(data[1]),
                     wholeUpdate: Number.parseInt(data[2]),
@@ -664,8 +692,8 @@ export class Factory {
             }
         }
         // what do we need for metadata? Include here
-        if (trial instanceof SavedTrial) {
-            results = SavedSystemRecord.fromRecords(results, trial.id);
+        if (trial instanceof Trial) {
+            results = GameFlowSystemRecord.fromRecords(results, trial.id);
         }
         return results;
     }
@@ -815,8 +843,10 @@ export class Factory {
             await Factory.symlinkModFiles(source.modList.modFileNames);
 
             // if it exists, symlink the mod-settings.dat file
-            if (source.modList.settingsFile && !(await fs.exists(path.join(Factory.factoryDataPath, 'mod-settings.dat'))))
-                await fs.symlink(source.modList.settingsFile, path.join(Factory.factoryDataPath, 'mod-settings.dat'));
+            // BUT WAIT!! We are changing this - just check if there's a <mod-list-id>.dat file in the mod-list folder
+            // if there is, symlink it to the mod-settings.dat file
+            if (source?.modList?.id && await fs.exists(path.join(Factory.factoryDataPath, 'mods-cache', `${source.modList.id}.dat`)))
+                await fs.symlink(path.join(Factory.factoryDataPath, 'mods-cache', `${source.modList.id}.dat`), path.join(Factory.factoryDataPath, 'mod-settings.dat'));
 
             // then, we need to write the mod-list.json file. Factorio uses this to load the actual list of mods
             await source.modList.writeModListFile(path.join(Factory.modsPath, 'mod-list.json'));
