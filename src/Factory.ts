@@ -562,7 +562,8 @@ export class Factory {
             }
         }
         // lastly, if  our trial is a 'SavedTrial' type, we will make sure we convert all these records into SavedFlowRecords
-        if (trial instanceof Trial) {
+        if (trial instanceof Trial && GameFlowItemRecord?.fromRecords) {
+
             results = GameFlowItemRecord.fromRecords(results, trial.id);
         }
         trial.itemMetadata = metadata;
@@ -606,7 +607,7 @@ export class Factory {
             }
         }
 
-        if (trial instanceof Trial) {
+        if (trial instanceof Trial && GameFlowCircuitRecord?.fromRecords) {
             results = GameFlowCircuitRecord.fromRecords(results, trial.id);
         }
 
@@ -632,7 +633,7 @@ export class Factory {
                 count: lData.pollution
             })
         }
-        if (trial instanceof Trial) {
+        if (trial instanceof Trial && GameFlowPollutionRecord?.fromRecords) {
             results = GameFlowPollutionRecord.fromRecords(results, trial.id);
         }
 
@@ -778,7 +779,7 @@ export class Factory {
             }
         }
         // what do we need for metadata? Include here
-        if (trial instanceof Trial) {
+        if (trial instanceof Trial && GameFlowSystemRecord?.fromRecords) {
             results = GameFlowSystemRecord.fromRecords(results, trial.id);
         }
         return results;
@@ -1081,14 +1082,21 @@ export class Factory {
     * */
     static async copyScenarioSourceToFolder(folder: string) {
         const srcPath = path.join(__dirname, '../', '../', 'factory', 'scenarios', 'scenario-source');
+        const srcPathTest2 = path.join(__dirname, '../', 'factory', 'scenarios', 'scenario-source');
         const destPath = path.join(Factory.factoryDataPath, 'scenarios', folder);
         Logging.log('info', {message: `Copying scenario-source from ${srcPath} to ${destPath}`})
         try {
             await fs.copy(srcPath, destPath, {overwrite: true});
             return destPath
         } catch (e) {
-            Logging.log('info', {message: `Failed to copy scenario-source! Ensure that scenario-source exists in the scenarios folder`});
-            throw new Error('Failed to copy scenario-source - ' + e?.message ? e.message : e)
+            try {
+                Logging.log('info', {message: `Failed to copy scenario-source! Trying again from ${srcPathTest2} to ${destPath}`})
+                await fs.copy(srcPathTest2, destPath, {overwrite: true});
+                return destPath
+            } catch (e2) {
+                Logging.log('error', {message: `Failed to copy scenario-source! Second attempt, error`, error: e2})
+                throw new Error('Failed to copy scenario-source - ' + e2?.message ? e2.message : e2)
+            }
         }
     }
 
