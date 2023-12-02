@@ -73,10 +73,12 @@ export class Source implements ISource {
 
     static ensureObject(source: ISource): Source {
         let a = source as Source
-        if (a.updateHash)
+        if (a?.updateHash)
             return a;
-        else
+        else if (source)
             return new Source(source)
+        else
+            return undefined
     }
 
     constructor(params: ISource = null) {
@@ -87,7 +89,7 @@ export class Source implements ISource {
         this.name = params.name;
         this.desc = params.desc;
         this.tags = params.tags ? params.tags : [];
-        this.modList = ModList.ensureObject(params.modList);
+        this.modList = params.modList ? ModList.ensureObject(params.modList) : undefined
         if (params.blueprint && params.saveGamePath)
             throw new Error('Cannot have both blueprint and savegame path specified in creating a Source');
 

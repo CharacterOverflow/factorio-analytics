@@ -42,10 +42,6 @@ export interface IFactoryStartParams {
     // LIKELY the same as installPath if game was installed automatically
     dataDir?: string;
 
-    // list of mods that we want to include - all will be attempted to downloaded if not present
-    // Leave blank to use mod configuration as-is
-    //mods?: string[];
-
     // if true, will not show console logs, but will still appear in log file
     hideConsole?: boolean
 
@@ -58,56 +54,112 @@ export interface IFactoryStartParams {
 }
 
 /*
-* Trial Prepare, Compile, Run, and Analyze
-
-There are 4 main steps required before we can actually 'process' our trial
-
-(NOTE) Save Game these steps change a bit, but the core concept is the same
-
-    Prepare - Makes lua changes, inserts text into files, moves files to correct locations
-        Blueprint
-            Copy template scenario to trial ID scenario folder
-            Modify scenario file with your parameters provided
-            Trial marked as Prepared
-        Save Game
-            Extract save .zip file into trial ID save folder
-            Copy 'savegame.lua' scenario lua into new 'save' folder
-            Modify control.lua to include our savegame.lua
-            Modify savegame.lua with your parameters provided
-        Download mods set up in the 'source'
-        Trial Marked as Prepared and Compiled
-    Compile - Run factorio executable to convert scenario -> save (ONLY IF BLUEPRINT)
-        Blueprint
-            Call factorio executable to convert 'Scenario' into 'Save'
-            Extract 'scenario.zip' save file that was generated into 'scenario' folder in saves
-            Trial marked as 'Compiled'
-    Run
-        No matter what option chosen for trial, factorio executable is called to run benchmark for LENGTH ticks
-        After execution, save folder is deleted (and scenario folder if it exists)
-        Returns RawDataset object
-    Analyze
-        Technically optional, but also handles cleanup of data files
-        Files in script-output for this Trial are loaded, analyzed, then deleted once all data is parsed and accounted for
-        Returns Dataset object
-
-From here, you can now freely use your data!
-
-All of these steps can be called and done individually if desired, but will also occur whenever you call any 'later' step
-
-Ie, if you call FactoryRunner.Analyze(trial) - it will go through the process of prepare->compile->run->analyze then return Dataset
-
-Ie, if you call FactoryRunner.Run(trial) - it will go throught he process of prepare->compile->run then return RawDataset
-
-You can also then batch tons of trials together.
-
-Say you had 1000 trials - its likely far faster to batch-prepare-compile them all, then run them all together
-* */
-
-/*
 * The main 'runner' - this class is used for accessing all executable functionality, along with preping and setting
 * the data needed in filesystem. It should include as little references out as possible!
 * */
 export class Factory {
+
+
+    public static _initStatus: string = 'not-started';
+    public static get initStatus() {
+        return Factory._initStatus;
+    }
+
+    public static set initStatus(val: string) {
+        Factory._initStatus = val;
+        if (Factory.onStatusChange)
+            Factory.onStatusChange(val);
+    }
+
+
+    static async initialize(params: IFactoryStartParams) {
+
+        if (Factory.initStatus !== 'not-started')
+            return
+
+        if (!params?.installDir)
+            throw new Error(`Cannot start factory without installPath ||| ${params.installDir}`);
+
+        // If no data path specified, we assume same as install path. Should be the case in alllllll situations.... except Steam
+        if (!params?.dataDir)
+            params.dataDir = params.installDir;
+
+        this.initStatus = 'logging';
+        await Factory.setupLogger(params.hideConsole);
+
+        // Phase 2 - link to the data path folder
+        // ensure core folders are made - if any of these fail, the rest fails
+        this.initStatus = 'folder-setup';
+        await Promise.all([
+            fs.ensureDir(path.join(params.dataDir, 'mods')),
+            fs.ensureDir(path.join(params.dataDir, 'scenarios')),
+            fs.ensureDir(path.join(params.dataDir, 'saves')),
+            fs.ensureDir(path.join(params.dataDir, 'saves-upload')),
+            fs.ensureDir(path.join(params.dataDir, 'script-output')),
+            fs.ensureDir(path.join(params.dataDir, 'downloads')),
+            fs.ensureDir(path.join(params.dataDir, 'mods-cache'))
+        ]);
+
+        // Will need to have a check for script-output being populated after a run or not, to ID a bad Data Path
+        Factory.factoryDataPath = params.dataDir;
+        Factory.factoryInstallPath = params.installDir;
+
+        // clear the script-output folder as well
+        //await fs.emptyDir(path.join(params.dataDir, 'script-output'))
+        Logging.log('info', `Core folders exist in ${params.dataDir}`);
+
+        // Clear the 'compiled' save that is specified, if it exists
+        // this will force a recompile, which is only done once on init anyways.
+        // ensures correct version with executable. Happens in 'verify' function
+        //await fs.remove(Factory.activeSavePath)
+
+        this.initStatus = 'factorio-api-init'
+        // Phase 3 - Setup API access
+        // Setup factorio api access, to be able to download/update needed mods and game
+        await FactorioApi.initialize({
+            username: params.username ? params.username : process.env.FACTORIO_USER,
+            token: params.token ? params.token : process.env.FACTORIO_TOKEN,
+            dataPath: Factory.factoryDataPath,
+            installPath: Factory.factoryInstallPath
+        })
+
+        // Phase 4 - Verify our install or reinstall as needed
+        // First off, lets load our cached mods
+        await Factory.refreshModCache()
+        let err: any;
+
+        try {
+            this.initStatus = 'validating-install'
+            // Validate our executable exists and info file exists
+            await Factory.verifyInstall();
+        } catch (e) {
+            // if this gets hit, means that something had an error in the 'link' process above
+            // In this case, this catch allows code to continue past in this case, where future code handles the re-install if possible
+            // or re-throws an error
+            err = e;
+            Logging.log('error', `Error linking factory install path - ${e.message}`);
+        }
+
+
+        // Max number of times can be downloaded while process is running - if this occurs, restart process. Safety check for paranoia of constant re-downloads for now
+        if (Factory.factoryExecutable != true) {
+            if (Factory.clientDownloadCount < 2) {
+                // re-install!
+                try {
+                    this.initStatus = 'installing'
+                    await Factory.installGame(process.env.FACTORY_VERSION);
+                } catch (e) {
+                    Logging.log('error', `Error installing Factorio - ${e.message}`);
+                    // delete the cached download file, as it may have issues. Next loop will retry!
+                }
+            } else {
+                throw new Error(`Cannot link factory install path, too many download attempts - ${err.message}. Manual install required, then restart process!`);
+            }
+        }
+
+        this.initStatus = 'ready';
+    }
+
 
     public static async prepareTrial(t: Trial) {
         if (!t?.id)
@@ -380,7 +432,7 @@ export class Factory {
                 let electricDataset = new ElectricDataset(t, path.join(Factory.scriptOutputPath, 'data', t.dataFiles.electric))
                 await electricDataset.parseData()
                 rObj.electric = electricDataset;
-            }
+            }*/
             if (t.recordCircuits) {
                 Logging.log('info', {message: `Analyzing circuit data for trial ${t.id}`});
                 rObj.circuits = {
@@ -389,7 +441,7 @@ export class Factory {
                 }
                 if (saveToDB && t instanceof Trial)
                     await FactoryDatabase.insertCircuitRecords((rObj.circuits?.data ?? [])as GameFlowCircuitRecord[])
-            }*/
+            }
             if (t.recordPollution) {
                 Logging.log('info', {message: `Analyzing pollution data for trial ${t.id}`});
                 rObj.pollution = {
@@ -410,10 +462,11 @@ export class Factory {
             }
             await Factory.deleteScriptOutputFiles(t);
             await Factory.deleteSaveFileClutter(t);
-            if (saveToDB && t instanceof Trial)
-                await FactoryDatabase.saveTrial(t as Trial, true)
 
             t.setStage('analyzed');
+            if (saveToDB && t instanceof Trial) {
+                await FactoryDatabase.saveTrial(t as Trial, true)
+            }
 
             return rObj
         } catch (e) {
@@ -423,7 +476,7 @@ export class Factory {
         }
     }
 
-    public static async parseItemDataFile(filepath: string, trial: Trial): Promise<IGameFlowItemTick[]> {
+    public static async parseItemDataFile(filepath: string, trial: Trial): Promise<IGameFlowItemTick[] | GameFlowItemRecord[]> {
         let raw = await fs.readFile(filepath, 'utf-8');
 
         let results: IGameFlowItemTick[] = [];
@@ -491,7 +544,7 @@ export class Factory {
             avg: {},
             total: {}
         }
-        for(let i = 0; i < kList.length; i++) {
+        for (let i = 0; i < kList.length; i++) {
 
             // sum / length (in minutes)
             let itemData = g[kList[i]]
@@ -521,7 +574,43 @@ export class Factory {
     }
 
     public static async parseCircuitDataFile(filepath: string, trial: Trial): Promise<IGameFlowCircuitTick[]> {
-        throw new Error('Circuit data not implemented yet - need to ensure accuracy and prepare for future circuit changes');
+        if (filepath == null)
+            throw new Error('Cannot parse circuit data file! Filepath is null');
+
+        let raw = await fs.readFile(filepath, 'utf-8');
+
+        let results: IGameFlowCircuitTick[] = [];
+        let lines = raw.split('\n');
+
+        for(let i = 0; i < lines.length - 1; i++) {
+            let networks = JSON.parse(lines[i]);
+            // l is an array, each object in it has network_id color  and signals (signals is complex)
+            for(let j = 0; j < networks.length; j++) {
+                // find signals - cycle through for each signal, adding to the results array
+                let subnet = networks[j];
+                let network_id = subnet.network_id;
+                let color = subnet.color;
+                if (subnet.signals && subnet.signals.length > 0) {
+                    for(let k = 0; k < subnet.signals.length; k++) {
+                        let signal = subnet.signals[k];
+                        results.push({
+                            label: signal.signal.name,
+                            signalType: signal.signal.type,
+                            tick: (i + 1) * trial.tickInterval,
+                            networkId: network_id,
+                            color: color,
+                            count: signal.count
+                        })
+                    }
+                }
+            }
+        }
+
+        if (trial instanceof Trial) {
+            results = GameFlowCircuitRecord.fromRecords(results, trial.id);
+        }
+
+        return results
     }
 
     public static async parsePollutionDataFile(filepath: string, trial: Trial): Promise<IGameFlowPollutionTick[]> {
@@ -531,6 +620,7 @@ export class Factory {
         let lines = raw.split('\n');
 
         // Now, need to sort through the list of lines and parse out the data
+        // last line isn't 'real' - there's always a newline in the banana stand
         for (let i = 0; i < lines.length - 1; i++) {
             let l = lines[i];
 
@@ -799,17 +889,6 @@ export class Factory {
         }
     }
 
-    public static _initStatus: string = 'not-started';
-    public static get initStatus() {
-        return Factory._initStatus;
-    }
-
-    public static set initStatus(val: string) {
-        Factory._initStatus = val;
-        if (Factory.onStatusChange)
-            Factory.onStatusChange(val);
-    }
-
     public static onStatusChange: (newStatus: string) => void
 
     private static async deleteScriptOutputFiles(trial: string | Trial) {
@@ -826,6 +905,7 @@ export class Factory {
             Logging.log('error', {message: `Failed to delete raw files for trial ${trialId}`, error: e});
         }
     }
+
     private static async deleteSaveFileClutter(trial: string | Trial) {
         // deletes all raw files associated with this trial in the script-output directory
         let trialId = typeof trial === 'string' ? trial : trial.id;
@@ -884,91 +964,6 @@ export class Factory {
             else
                 Factory.modCache.add(files[i]);
         }
-    }
-
-    static async initialize(params: IFactoryStartParams) {
-
-        if (!params?.installDir)
-            throw new Error(`Cannot start factory without installPath ||| ${params.installDir}`);
-
-        // If no data path specified, we assume same as install path. Should be the case in alllllll situations.... except Steam
-        if (!params?.dataDir)
-            params.dataDir = params.installDir;
-
-        this.initStatus = 'logging';
-        await Factory.setupLogger(params.hideConsole);
-
-        // Phase 2 - link to the data path folder
-        // ensure core folders are made - if any of these fail, the rest fails
-        this.initStatus = 'folder-setup';
-        await Promise.all([
-            fs.ensureDir(path.join(params.dataDir, 'mods')),
-            fs.ensureDir(path.join(params.dataDir, 'scenarios')),
-            fs.ensureDir(path.join(params.dataDir, 'saves')),
-            fs.ensureDir(path.join(params.dataDir, 'saves-upload')),
-            fs.ensureDir(path.join(params.dataDir, 'script-output')),
-            fs.ensureDir(path.join(params.dataDir, 'downloads')),
-            fs.ensureDir(path.join(params.dataDir, 'mods-cache'))
-        ]);
-
-        // Will need to have a check for script-output being populated after a run or not, to ID a bad Data Path
-        Factory.factoryDataPath = params.dataDir;
-        Factory.factoryInstallPath = params.installDir;
-
-        // clear the script-output folder as well
-        //await fs.emptyDir(path.join(params.dataDir, 'script-output'))
-        Logging.log('info', `Core folders exist in ${params.dataDir}`);
-
-        // Clear the 'compiled' save that is specified, if it exists
-        // this will force a recompile, which is only done once on init anyways.
-        // ensures correct version with executable. Happens in 'verify' function
-        //await fs.remove(Factory.activeSavePath)
-
-        this.initStatus = 'factorio-api-init'
-        // Phase 3 - Setup API access
-        // Setup factorio api access, to be able to download/update needed mods and game
-        await FactorioApi.initialize({
-            username: params.username ? params.username : process.env.FACTORIO_USER,
-            token: params.token ? params.token : process.env.FACTORIO_TOKEN,
-            dataPath: Factory.factoryDataPath,
-            installPath: Factory.factoryInstallPath
-        })
-
-        // Phase 4 - Verify our install or reinstall as needed
-        // First off, lets load our cached mods
-        await Factory.refreshModCache()
-        let err: any;
-
-        try {
-            this.initStatus = 'validating-install'
-            // Validate our executable exists and info file exists
-            await Factory.verifyInstall();
-        } catch (e) {
-            // if this gets hit, means that something had an error in the 'link' process above
-            // In this case, this catch allows code to continue past in this case, where future code handles the re-install if possible
-            // or re-throws an error
-            err = e;
-            Logging.log('error', `Error linking factory install path - ${e.message}`);
-        }
-
-
-        // Max number of times can be downloaded while process is running - if this occurs, restart process. Safety check for paranoia of constant re-downloads for now
-        if (Factory.factoryExecutable != true) {
-            if (Factory.clientDownloadCount < 2) {
-                // re-install!
-                try {
-                    this.initStatus = 'installing'
-                    await Factory.installGame(process.env.FACTORY_VERSION);
-                } catch (e) {
-                    Logging.log('error', `Error installing Factorio - ${e.message}`);
-                    // delete the cached download file, as it may have issues. Next loop will retry!
-                }
-            } else {
-                throw new Error(`Cannot link factory install path, too many download attempts - ${err.message}. Manual install required, then restart process!`);
-            }
-        }
-
-        this.initStatus = 'ready';
     }
 
     static async stop(includeLogger: boolean = true) {

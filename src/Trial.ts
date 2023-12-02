@@ -79,7 +79,7 @@ export class Trial implements ITrial {
 
     // Boolean flags for each 'data' category, used to determine which data to record
     @Column({
-        nullable: false,
+        nullable: false
     })
     recordItems: boolean
 
@@ -183,13 +183,13 @@ export class Trial implements ITrial {
     })
     pollutionMetadata: any = null;
 
-    static ensureObject(trial: ITrial): Trial {
+    /*static ensureObject(trial: ITrial): Trial {
         let a = trial as Trial
         if (a.dataFiles)
             return a;
         else
             return new Trial(a)
-    }
+    }*/
 
     // filename results - generated from flags of which data to poll + id
     // these files will be deleted after processing, so they may or may not exist. These are their original names however
@@ -228,7 +228,7 @@ export class Trial implements ITrial {
                     blueprint: params.source,
                 })
             }
-        } else {
+        } else if (params.source) {
             // otherwise, we assume its already a source object
             this.source = Source.ensureObject(params.source)
         }
@@ -237,29 +237,22 @@ export class Trial implements ITrial {
         this.desc = params.desc;
 
         // set the other data we need as well about the trial
-        if (params.length)
-            this.length = params.length;
+        this.length = params.length ?? 7200;
 
-        if (params.tickInterval)
-            this.tickInterval = params.tickInterval;
+        this.tickInterval = params.tickInterval ?? 60;
 
         if (params.initialBots)
             this.initialBots = params.initialBots;
 
-        if (params.recordItems)
-            this.recordItems = params.recordItems;
+        this.recordItems = (params.recordItems  != undefined) ? params.recordItems : false
 
-        if (params.recordElectric)
-            this.recordElectric = false // params.recordElectric;
+        this.recordElectric = false // params.recordElectric;
 
-        if (params.recordCircuits)
-            this.recordCircuits = params.recordCircuits // params.recordCircuits;
+        this.recordCircuits = (params.recordCircuits != undefined) ? params.recordCircuits : false
 
-        if (params.recordPollution)
-            this.recordPollution = params.recordPollution;
+        this.recordPollution = (params.recordPollution  != undefined) ? params.recordPollution : false
 
-        if (params.recordSystem)
-            this.recordSystem = params.recordSystem;
+        this.recordSystem = (params.recordSystem  != undefined) ? params.recordSystem : false
     }
 
     setStage(stage: TTrialStages) {

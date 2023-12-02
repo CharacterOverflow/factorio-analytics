@@ -33,10 +33,16 @@ export class ModList implements  IModList {
 
     static ensureObject(modList: IModList): ModList {
         let a = modList as ModList
-        if (a.modFileNames)
+        if (a && a?.modFileNames)
             return a;
-        else
+        else if (modList)
             return new ModList(modList)
+        else
+            return new ModList({
+                name: 'New Modlist',
+                desc: 'Created by default',
+                mods: []
+            })
     }
 
     static async fromModListFile(filepath: string): Promise<ModList> {

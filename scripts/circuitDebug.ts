@@ -1,4 +1,3 @@
-"use strict";
 /*
 * Blueprint-Scripts CLI - runTrial.(ts/js)
 *
@@ -9,49 +8,21 @@
 * Data written out will be be directed to a JSON file by default, but if CSV is desired use --csv (or -c) flag
 *
 * */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const dotenv = __importStar(require("dotenv"));
-const path_1 = __importDefault(require("path"));
-const Factory_1 = require("../src/Factory");
-const FactoryDatabase_1 = require("../src/FactoryDatabase");
-const FactoryBackend_1 = require("../src/FactoryBackend");
+
+import * as dotenv from 'dotenv';
+import {Trial} from "../src/Trial";
+import * as fs from "fs-extra";
+import path from "path";
+import {Factory} from "../src/Factory";
+import {ModList} from "../src/ModList";
+import {Source} from "../src/Source";
+import {FactoryDatabase} from "../src/FactoryDatabase";
+import {FactoryBackend} from "../src/FactoryBackend";
+
 dotenv.config();
-const bpFile = path_1.default.join(process.cwd(), 'factory/examples/45spm_base.bp');
+
+const bpFile = path.join(process.cwd(), 'factory/examples/45spm_base.bp');
+
 /*
 * CREATE A WAY TO START FACTORY RUNNER WITHOUT INDIVIDUAL VALUES - RATHER, A CONFIG FILE
 * specify path, or leave default for 'factory.config.json'
@@ -64,44 +35,83 @@ const bpFile = path_1.default.join(process.cwd(), 'factory/examples/45spm_base.b
 * otherwise, API can go from DB mostly and allow user to change things on the frontend
 *
 * */
-function main() {
-    return __awaiter(this, void 0, void 0, function* () {
-        console.log('SETUP DEBUG STAGE 1 COMPLETE');
-        yield Factory_1.Factory.initialize({
-            installDir: '/home/overflow/Apps/factorio_auto_v3',
-            hideConsole: false
-            // user info is provided auto-magically from .env
-        });
-        yield FactoryDatabase_1.FactoryDatabase.initialize();
-        yield FactoryBackend_1.FactoryBackend.startServer();
-        // lets try running a blueprint test
-        // let bp = fs.readFileSync(bpFile, 'utf8');
-        //
-        // let source = new SavedSource({
-        //     blueprint: bp,
-        //     name: '45spm_base',
-        // });
-        // let t = new SavedTrial({
-        //     source,
-        //     length: 7200,
-        //     tickInterval: 60,
-        //     initialBots: 200,
-        //     recordSystem: true,
-        //     recordCircuits: true,
-        //     recordPollution: true,
-        // })
-        //await t.ready
-        //await FactoryDatabase.saveTrial(t);
-        //let v = await FactoryDatabase.loadTrial(t.id);
-        //let results = await Factory.analyzeTrial(t, true);
-        //await FactoryDatabase.saveTrial(t, false)
-    });
+
+async function main() {
+    console.log('SETUP DEBUG STAGE 1 COMPLETE');
+
+    await Factory.initialize({
+        installDir: '/home/overflow/Apps/factorio_auto_v3',
+        hideConsole: false
+        // user info is provided auto-magically from .env
+    })
+    await FactoryDatabase.initialize()
+    await FactoryBackend.startServer();
+
+    const circuitTestBp = await fs.readFile('/home/overflow/Projects/factorio-analytics/factory/examples/circuit_test.txt', 'utf8');
+    //const scienceTestBp = await fs.readFile('/home/overflow/Projects/factorio-analytics/factory/examples/45spm_base.bp', 'utf-8');
+
+    // try running a basic new trial. circuts to test with for now
+    let circSource = new Source({
+        blueprint: circuitTestBp,
+        name: 'Circuit Test',
+        desc: 'A simple test to see if circuit data is being recorded properly',
+        tags: ['circuit', 'test']
+    })
+
+    let trial = new Trial({
+        source: circSource,
+        length: 7200,
+        tickInterval: 1,
+        initialBots: 200,
+        recordItems: true,
+        recordSystem: true,
+        recordCircuits: true,
+        recordPollution: true,
+    })
+
+    try {
+        let data = await Factory.runTrial(trial)
+        console.log(data);
+    } catch (e) {
+        console.log(e)
+    }
+
+
+
+
+    // lets try running a blueprint test
+    // let bp = fs.readFileSync(bpFile, 'utf8');
+    //
+    // let source = new SavedSource({
+    //     blueprint: bp,
+    //     name: '45spm_base',
+    // });
+
+    // let t = new SavedTrial({
+    //     source,
+    //     length: 7200,
+    //     tickInterval: 60,
+    //     initialBots: 200,
+    //     recordSystem: true,
+    //     recordCircuits: true,
+    //     recordPollution: true,
+    // })
+    //await t.ready
+    //await FactoryDatabase.saveTrial(t);
+    //let v = await FactoryDatabase.loadTrial(t.id);
+
+    //let results = await Factory.analyzeTrial(t, true);
+
+    //await FactoryDatabase.saveTrial(t, false)
+
 }
-main().then((t) => __awaiter(void 0, void 0, void 0, function* () {
+
+main().then(async (t) => {
+
     console.log('TRIAL RUN!');
-})).catch((e) => {
+}).catch((e) => {
     console.error(e);
-});
+})
 /*
 Factory.initialize({
     installDir: process.env.FACTORIO_INSTALL,
@@ -201,4 +211,3 @@ Factory.initialize({
     console.error(e);
 })
 */
-//# sourceMappingURL=debug.js.map

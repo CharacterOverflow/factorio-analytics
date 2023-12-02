@@ -44,9 +44,10 @@ export interface IGameFlowElectricTick extends IGameFlow {
 }
 
 export interface IGameFlowCircuitTick extends IGameFlow {
-    circuitId: number;
+    networkId: number;
     color: string;
     count: number;
+    signalType:  string;
 }
 /*
 export interface IGameCircuitSignal {
@@ -178,7 +179,7 @@ export class GameFlowCircuitRecord implements IGameFlowCircuitTick {
     trialId: string;
 
     @PrimaryColumn()
-    circuitId: number;
+    networkId: number;
 
     @PrimaryColumn({type: 'integer'})
     tick: number;
@@ -189,6 +190,9 @@ export class GameFlowCircuitRecord implements IGameFlowCircuitTick {
     @PrimaryColumn()
     label: string
 
+    @Column()
+    signalType: string
+
     @Column({type: 'integer'})
     count: number;
 
@@ -198,11 +202,16 @@ export class GameFlowCircuitRecord implements IGameFlowCircuitTick {
             return
 
         this.trialId = trialId
-        this.circuitId = params.circuitId;
+        this.networkId = params.networkId;
+        this.signalType = params.signalType;
         this.tick = params.tick;
         this.color = params.color;
         this.label = params.label;
         this.count = params.count;
+    }
+
+    static fromRecords(records: IGameFlowCircuitTick[], trialId: string): GameFlowCircuitRecord[] {
+        return records.map(record => new GameFlowCircuitRecord(record, trialId))
     }
 
 }

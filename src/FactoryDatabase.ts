@@ -25,20 +25,29 @@ export class FactoryDatabase {
             database: path.join(Factory.factoryDataPath, 'factory-storage', 'factory.db'),
             statementCacheSize: 500,
             synchronize: true,
-            entities: [path.join(__dirname, 'database/*.js')]
+            entities: [Trial, Source, ModList,
+                GameFlowItemRecord,
+                GameFlowElectricRecord,
+                GameFlowCircuitRecord,
+                GameFlowPollutionRecord,
+                GameFlowSystemRecord
+            ]
         })
         await FactoryDatabase.FactoryDB.initialize()
         await FactoryDatabase.FactoryDB.synchronize(false)
     }
 
     static async deleteTrialData(trialId: string) {
-        await FactoryDatabase.FactoryDB.getRepository('SavedFlowRecord').delete({
+        await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).delete({
             trialId
         })
-        await FactoryDatabase.FactoryDB.getRepository('SavedPollutionRecord').delete({
+        await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).delete({
             trialId
         })
-        await FactoryDatabase.FactoryDB.getRepository('SavedSystemRecord').delete({
+        await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).delete({
+            trialId
+        })
+        await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).delete({
             trialId
         })
         let t = await FactoryDatabase.loadTrial(trialId, false)
@@ -89,13 +98,13 @@ export class FactoryDatabase {
     }
 
     static async listTrials(count: number = 1000) {
-        return await FactoryDatabase.FactoryDB.getRepository('SavedTrial').find({
+        return await FactoryDatabase.FactoryDB.getRepository(Trial).find({
             take: count
         })
     }
 
     static async listSources(count: number = 1000) {
-        return await FactoryDatabase.FactoryDB.getRepository('SavedSource').find({
+        return await FactoryDatabase.FactoryDB.getRepository(Source).find({
             take: count,
         })
     }
@@ -112,7 +121,7 @@ export class FactoryDatabase {
     }
 
     static async loadSource(id: string, includeModList: boolean = true) {
-        return await FactoryDatabase.FactoryDB.getRepository('SavedSource').findOne({
+        return await FactoryDatabase.FactoryDB.getRepository(Source).findOne({
             where: {
                 id
             },
@@ -123,7 +132,7 @@ export class FactoryDatabase {
     }
 
     static async loadModList(id: string) {
-        return await FactoryDatabase.FactoryDB.getRepository('SavedModList').findOne({
+        return await FactoryDatabase.FactoryDB.getRepository(ModList).findOne({
             where: {
                 id
             }
@@ -141,41 +150,41 @@ export class FactoryDatabase {
         if (saveExtra && source.modList) {
             await FactoryDatabase.saveModList(source.modList)
         }
-        return await FactoryDatabase.FactoryDB.getRepository('SavedSource').save(source)
+        return await FactoryDatabase.FactoryDB.getRepository(Source).save(source)
     }
 
     static async saveModList(modList: ModList) {
-        return await FactoryDatabase.FactoryDB.getRepository('SavedModList').save(modList)
+        return await FactoryDatabase.FactoryDB.getRepository(ModList).save(modList)
     }
 
 
     static async insertItemRecords(records: GameFlowItemRecord[]) {
         // chunk size of 1000 to start
-        for(let i = 0; i < records.length; i += 1000) {
+        for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertElectricRecords(records: GameFlowElectricRecord[]) {
-        for(let i = 0; i < records.length; i += 1000) {
+        for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowElectricRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertCircuitRecords(records: GameFlowCircuitRecord[]) {
-        for(let i = 0; i < records.length; i += 1000) {
+        for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertPollutionRecords(records: GameFlowPollutionRecord[]) {
-        for(let i = 0; i < records.length; i += 1000) {
+        for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertSystemRecords(records: GameFlowSystemRecord[]) {
-        for(let i = 0; i < records.length; i += 1000) {
+        for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).insert(records.slice(i, i + 1000))
         }
     }

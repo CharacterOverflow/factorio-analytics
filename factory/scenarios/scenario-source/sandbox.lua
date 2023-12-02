@@ -268,6 +268,7 @@ local runExports = function(tick)
                             if (net ~= nil and net.network_id ~= nil) then
                                 -- now, we have all the data we need to store in our map
                                 circuitMap[net.network_id] = {
+                                    network_id = net.network_id,
                                     color = 'red',
                                     signals = net.signals
                                 }
@@ -293,6 +294,7 @@ local runExports = function(tick)
                             if (net ~= nil and net.network_id ~= nil) then
                                 -- now, we have all the data we need to store in our map
                                 circuitMap[net.network_id] = {
+                                    network_id = net.network_id,
                                     color = 'green',
                                     signals = net.signals
                                 }
