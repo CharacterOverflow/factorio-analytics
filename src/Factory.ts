@@ -13,16 +13,26 @@ import {Trial} from "./Trial";
 import * as process from "process";
 import {ModList} from "./ModList";
 import {
-    GameFlowCircuitRecord, GameFlowItemRecord,
-    GameFlowPollutionRecord, GameFlowSystemRecord,
-    IGameFlowCircuitResults, IGameFlowCircuitTick,
+    GameFlowCircuitRecord,
+    GameFlowItemRecord,
+    GameFlowPollutionRecord,
+    GameFlowSystemRecord,
+    IGameFlow,
+    IGameFlowCircuitResults,
+    IGameFlowCircuitTick,
     IGameFlowElectricResults,
     IGameFlowItemResults,
-    IGameFlowItemTick, IGameFlowPollutionResults, IGameFlowPollutionTick, IGameFlowSystemResults, IGameFlowSystemTick,
+    IGameFlowItemTick,
+    IGameFlowPollutionResults,
+    IGameFlowPollutionTick, IGameFlowResults,
+    IGameFlowSystemResults,
+    IGameFlowSystemTick,
+    IPlotData,
 } from "./Dataset";
 import _ from "lodash";
 import {Source} from "./Source";
 import {FactoryDatabase} from "./FactoryDatabase";
+import {DatasetAnalysis} from "./DatasetAnalysis";
 
 /*
 * Listing out the various ENV settings that can be set...
@@ -72,7 +82,7 @@ export class Factory {
     }
 
 
-    static async initialize(params: IFactoryStartParams) {
+    static async initialize(params: IFactoryStartParams, build?: string) {
 
         if (Factory.initStatus !== 'not-started')
             return
@@ -119,8 +129,7 @@ export class Factory {
         await FactorioApi.initialize({
             username: params.username ? params.username : process.env.FACTORIO_USER,
             token: params.token ? params.token : process.env.FACTORIO_TOKEN,
-            dataPath: Factory.factoryDataPath,
-            installPath: Factory.factoryInstallPath
+            dataPath: Factory.factoryDataPath
         })
 
         // Phase 4 - Verify our install or reinstall as needed
@@ -147,7 +156,7 @@ export class Factory {
                 // re-install!
                 try {
                     this.initStatus = 'installing'
-                    await Factory.installGame(process.env.FACTORY_VERSION);
+                    await Factory.installGame(process.env.FACTORY_VERSION, build);
                 } catch (e) {
                     Logging.log('error', `Error installing Factorio - ${e.message}`);
                     // delete the cached download file, as it may have issues. Next loop will retry!
@@ -256,6 +265,8 @@ export class Factory {
         // trial must be prepared before we can compile it - if not, prepare it
         if (t.stage !== 'prepared')
             await Factory.prepareTrial(t)
+
+
 
         // we do the executable check inside IF so that savegames don't throw an error
         // savegames as a whole dont need to be compiled, so we just skip this step
@@ -392,16 +403,17 @@ export class Factory {
 
     }
 
-    public static async analyzeTrial(t: Trial, saveToDB: boolean = false): Promise<{
+    public static async analyzeTrial(t: Trial, createSummaries: boolean = true, saveToDB: boolean = false): Promise<{
         items?: IGameFlowItemResults
         electric?: IGameFlowElectricResults
         circuits?: IGameFlowCircuitResults
         pollution?: IGameFlowPollutionResults
         system?: IGameFlowSystemResults
-    }>
-    {
+    }> {
         if (!t?.id)
             throw new Error('Cannot analyze trial! ID is missing, or trial is null');
+
+        await FactoryDatabase.deleteTrialData(t.id)
 
         // trial must be compiled before we can run it - if not, compile it
         if (t.stage !== 'ran')
@@ -426,6 +438,8 @@ export class Factory {
                 }
                 if (saveToDB && t instanceof Trial)
                     await FactoryDatabase.insertItemRecords(rObj.items.data as GameFlowItemRecord[])
+                if (createSummaries && t instanceof Trial)
+                    rObj.items = DatasetAnalysis.createSummaryOfItemDataset(rObj.items)
             }
             /*if (t.recordElectric) {
                 Logging.log('info', {message: `Analyzing electric data for trial ${t.id}`});
@@ -440,7 +454,9 @@ export class Factory {
                     trial: t
                 }
                 if (saveToDB && t instanceof Trial)
-                    await FactoryDatabase.insertCircuitRecords((rObj.circuits?.data ?? [])as GameFlowCircuitRecord[])
+                    await FactoryDatabase.insertCircuitRecords((rObj.circuits?.data ?? []) as GameFlowCircuitRecord[])
+                if (createSummaries && t instanceof Trial)
+                    rObj.circuits = DatasetAnalysis.createSummaryOfCircuitDataset(rObj.circuits)
             }
             if (t.recordPollution) {
                 Logging.log('info', {message: `Analyzing pollution data for trial ${t.id}`});
@@ -450,6 +466,8 @@ export class Factory {
                 }
                 if (saveToDB && t instanceof Trial)
                     await FactoryDatabase.insertPollutionRecords((rObj.pollution?.data ?? []) as GameFlowPollutionRecord[])
+                if (createSummaries && t instanceof Trial)
+                    rObj.pollution = DatasetAnalysis.createSummaryOfPollutionDataset(rObj.pollution)
             }
             if (t.recordSystem) {
                 Logging.log('info', {message: `Analyzing system data for trial ${t.id}`});
@@ -459,6 +477,8 @@ export class Factory {
                 }
                 if (saveToDB && t instanceof Trial)
                     await FactoryDatabase.insertSystemRecords((rObj.system?.data ?? []) as GameFlowSystemRecord[])
+                if (createSummaries && t instanceof Trial)
+                    rObj.system = DatasetAnalysis.createSummaryOfSystemDataset(rObj.system)
             }
             await Factory.deleteScriptOutputFiles(t);
             await Factory.deleteSaveFileClutter(t);
@@ -548,7 +568,7 @@ export class Factory {
 
             // sum / length (in minutes)
             let itemData = g[kList[i]]
-            let secondsLength = trial.length / (60 * 60)
+            let secondsLength = trial.length / (60)
             let totalCons = _.sumBy(itemData, 'cons')
             let totalProd = _.sumBy(itemData, 'prod')
 
@@ -583,16 +603,16 @@ export class Factory {
         let results: IGameFlowCircuitTick[] = [];
         let lines = raw.split('\n');
 
-        for(let i = 0; i < lines.length - 1; i++) {
+        for (let i = 0; i < lines.length - 1; i++) {
             let networks = JSON.parse(lines[i]);
             // l is an array, each object in it has network_id color  and signals (signals is complex)
-            for(let j = 0; j < networks.length; j++) {
+            for (let j = 0; j < networks.length; j++) {
                 // find signals - cycle through for each signal, adding to the results array
                 let subnet = networks[j];
                 let network_id = subnet.network_id;
                 let color = subnet.color;
                 if (subnet.signals && subnet.signals.length > 0) {
-                    for(let k = 0; k < subnet.signals.length; k++) {
+                    for (let k = 0; k < subnet.signals.length; k++) {
                         let signal = subnet.signals[k];
                         results.push({
                             label: signal.signal.name,
@@ -609,6 +629,29 @@ export class Factory {
 
         if (trial instanceof Trial && GameFlowCircuitRecord?.fromRecords) {
             results = GameFlowCircuitRecord.fromRecords(results, trial.id);
+        }
+
+        // not going to bother doing math related things - circuit values could mean a number of things, but its not a 'resource' like items
+        // instead, list other facts about the dataset, such as....
+        /// list of signals used (label only)
+        /// list of different networks, and how many different labels are on each (number)
+        // final metadata will be a object that has 'signalList' and 'networkList'
+        // signalList just includes label (string only), networkList includes network_id (number) and count (number)
+        let networkMap = _.groupBy(results, 'networkId')
+        let networkList = []
+        for (let k of Object.keys(networkMap)) {
+            // push to networkList an object that has the 'network' and the 'count' of unique labels inside that network
+            networkList.push({
+                network: Number.parseInt(k),
+                uniqueSignalCount: _.uniqBy(networkMap[k], 'label').length
+            })
+        }
+
+        let signals = (_.uniqBy(results, 'label')).map((v) => v.label) ?? []
+
+        trial.circuitMetadata = {
+            signals: signals,
+            networks: networkList
         }
 
         return results
@@ -636,7 +679,24 @@ export class Factory {
         if (trial instanceof Trial && GameFlowPollutionRecord?.fromRecords) {
             results = GameFlowPollutionRecord.fromRecords(results, trial.id);
         }
+        // for each item, calculate the average and total for  each item
+        let g = _.groupBy(results, 'label');
+        let kList = Object.keys(g);
+        let metadata = {
+            avg: 0,
+            max: 0,
+            min: 0,
+        }
+        for (let i = 0; i < kList.length; i++) {
 
+            // sum / length (in minutes)
+            let pollutionData = g[kList[i]]
+
+            metadata.avg = _.meanBy(pollutionData, 'count')
+            metadata.max = _.maxBy(pollutionData, 'count').count
+            metadata.min = _.minBy(pollutionData, 'count').count
+        }
+        trial.pollutionMetadata = metadata;
         return results;
     }
 
@@ -778,10 +838,118 @@ export class Factory {
                 currentSetCount = 0;
             }
         }
-        // what do we need for metadata? Include here
-        if (trial instanceof Trial && GameFlowSystemRecord?.fromRecords) {
-            results = GameFlowSystemRecord.fromRecords(results, trial.id);
+
+        let metadata = {
+            avg: {
+                timestamp: _.meanBy(results, 'timestamp'),
+                wholeUpdate: _.meanBy(results, 'wholeUpdate'),
+                latencyUpdate: _.meanBy(results, 'latencyUpdate'),
+                gameUpdate: _.meanBy(results, 'gameUpdate'),
+                circuitNetworkUpdate: _.meanBy(results, 'circuitNetworkUpdate'),
+                transportLinesUpdate: _.meanBy(results, 'transportLinesUpdate'),
+                fluidsUpdate: _.meanBy(results, 'fluidsUpdate'),
+                heatManagerUpdate: _.meanBy(results, 'heatManagerUpdate'),
+                entityUpdate: _.meanBy(results, 'entityUpdate'),
+                particleUpdate: _.meanBy(results, 'particleUpdate'),
+                mapGenerator: _.meanBy(results, 'mapGenerator'),
+                mapGeneratorBasicTilesSupportCompute: _.meanBy(results, 'mapGeneratorBasicTilesSupportCompute'),
+                mapGeneratorBasicTilesSupportApply: _.meanBy(results, 'mapGeneratorBasicTilesSupportApply'),
+                mapGeneratorCorrectedTilesPrepare: _.meanBy(results, 'mapGeneratorCorrectedTilesPrepare'),
+                mapGeneratorCorrectedTilesCompute: _.meanBy(results, 'mapGeneratorCorrectedTilesCompute'),
+                mapGeneratorCorrectedTilesApply: _.meanBy(results, 'mapGeneratorCorrectedTilesApply'),
+                mapGeneratorVariations: _.meanBy(results, 'mapGeneratorVariations'),
+                mapGeneratorEntitiesPrepare: _.meanBy(results, 'mapGeneratorEntitiesPrepare'),
+                mapGeneratorEntitiesCompute: _.meanBy(results, 'mapGeneratorEntitiesCompute'),
+                mapGeneratorEntitiesApply: _.meanBy(results, 'mapGeneratorEntitiesApply'),
+                crcComputation: _.meanBy(results, 'crcComputation'),
+                electricNetworkUpdate: _.meanBy(results, 'electricNetworkUpdate'),
+                logisticManagerUpdate: _.meanBy(results, 'logisticManagerUpdate'),
+                constructionManagerUpdate: _.meanBy(results, 'constructionManagerUpdate'),
+                pathFinder: _.meanBy(results, 'pathFinder'),
+                trains: _.meanBy(results, 'trains'),
+                trainPathFinder: _.meanBy(results, 'trainPathFinder'),
+                commander: _.meanBy(results, 'commander'),
+                chartRefresh: _.meanBy(results, 'chartRefresh'),
+                luaGarbageIncremental: _.meanBy(results, 'luaGarbageIncremental'),
+                chartUpdate: _.meanBy(results, 'chartUpdate'),
+                scriptUpdate: _.meanBy(results, 'scriptUpdate')
+            },
+            max: {
+                timestamp: _.maxBy(results, 'timestamp').timestamp,
+                wholeUpdate: _.maxBy(results, 'wholeUpdate').wholeUpdate,
+                latencyUpdate: _.maxBy(results, 'latencyUpdate').latencyUpdate,
+                gameUpdate: _.maxBy(results, 'gameUpdate').gameUpdate,
+                circuitNetworkUpdate: _.maxBy(results, 'circuitNetworkUpdate').circuitNetworkUpdate,
+                transportLinesUpdate: _.maxBy(results, 'transportLinesUpdate').transportLinesUpdate,
+                fluidsUpdate: _.maxBy(results, 'fluidsUpdate').fluidsUpdate,
+                heatManagerUpdate: _.maxBy(results, 'heatManagerUpdate').heatManagerUpdate,
+                entityUpdate: _.maxBy(results, 'entityUpdate').entityUpdate,
+                particleUpdate: _.maxBy(results, 'particleUpdate').particleUpdate,
+                mapGenerator: _.maxBy(results, 'mapGenerator').mapGenerator,
+                mapGeneratorBasicTilesSupportCompute: _.maxBy(results, 'mapGeneratorBasicTilesSupportCompute').mapGeneratorBasicTilesSupportCompute,
+                mapGeneratorBasicTilesSupportApply: _.maxBy(results, 'mapGeneratorBasicTilesSupportApply').mapGeneratorBasicTilesSupportApply,
+                mapGeneratorCorrectedTilesPrepare: _.maxBy(results, 'mapGeneratorCorrectedTilesPrepare').mapGeneratorCorrectedTilesPrepare,
+                mapGeneratorCorrectedTilesCompute: _.maxBy(results, 'mapGeneratorCorrectedTilesCompute').mapGeneratorCorrectedTilesCompute,
+                mapGeneratorCorrectedTilesApply: _.maxBy(results, 'mapGeneratorCorrectedTilesApply').mapGeneratorCorrectedTilesApply,
+                mapGeneratorVariations: _.maxBy(results, 'mapGeneratorVariations').mapGeneratorVariations,
+                mapGeneratorEntitiesPrepare: _.maxBy(results, 'mapGeneratorEntitiesPrepare').mapGeneratorEntitiesPrepare,
+                mapGeneratorEntitiesCompute: _.maxBy(results, 'mapGeneratorEntitiesCompute').mapGeneratorEntitiesCompute,
+                mapGeneratorEntitiesApply: _.maxBy(results, 'mapGeneratorEntitiesApply').mapGeneratorEntitiesApply,
+                crcComputation: _.maxBy(results, 'crcComputation').crcComputation,
+                electricNetworkUpdate: _.maxBy(results, 'electricNetworkUpdate').electricNetworkUpdate,
+                logisticManagerUpdate: _.maxBy(results, 'logisticManagerUpdate').logisticManagerUpdate,
+                constructionManagerUpdate: _.maxBy(results, 'constructionManagerUpdate').constructionManagerUpdate,
+                pathFinder: _.maxBy(results, 'pathFinder').pathFinder,
+                trains: _.maxBy(results, 'trains').trains,
+                trainPathFinder: _.maxBy(results, 'trainPathFinder').trainPathFinder,
+                commander: _.maxBy(results, 'commander').commander,
+                chartRefresh: _.maxBy(results, 'chartRefresh').chartRefresh,
+                luaGarbageIncremental: _.maxBy(results, 'luaGarbageIncremental').luaGarbageIncremental,
+                chartUpdate: _.maxBy(results, 'chartUpdate').chartUpdate,
+                scriptUpdate: _.maxBy(results, 'scriptUpdate').scriptUpdate
+            },
+            min: {
+                timestamp: _.minBy(results, 'timestamp').timestamp,
+                wholeUpdate: _.minBy(results, 'wholeUpdate').wholeUpdate,
+                latencyUpdate: _.minBy(results, 'latencyUpdate').latencyUpdate,
+                gameUpdate: _.minBy(results, 'gameUpdate').gameUpdate,
+                circuitNetworkUpdate: _.minBy(results, 'circuitNetworkUpdate').circuitNetworkUpdate,
+                transportLinesUpdate: _.minBy(results, 'transportLinesUpdate').transportLinesUpdate,
+                fluidsUpdate: _.minBy(results, 'fluidsUpdate').fluidsUpdate,
+                heatManagerUpdate: _.minBy(results, 'heatManagerUpdate').heatManagerUpdate,
+                entityUpdate: _.minBy(results, 'entityUpdate').entityUpdate,
+                particleUpdate: _.minBy(results, 'particleUpdate').particleUpdate,
+                mapGenerator: _.minBy(results, 'mapGenerator').mapGenerator,
+                mapGeneratorBasicTilesSupportCompute: _.minBy(results, 'mapGeneratorBasicTilesSupportCompute').mapGeneratorBasicTilesSupportCompute,
+                mapGeneratorBasicTilesSupportApply: _.minBy(results, 'mapGeneratorBasicTilesSupportApply').mapGeneratorBasicTilesSupportApply,
+                mapGeneratorCorrectedTilesPrepare: _.minBy(results, 'mapGeneratorCorrectedTilesPrepare').mapGeneratorCorrectedTilesPrepare,
+                mapGeneratorCorrectedTilesCompute: _.minBy(results, 'mapGeneratorCorrectedTilesCompute').mapGeneratorCorrectedTilesCompute,
+                mapGeneratorCorrectedTilesApply: _.minBy(results, 'mapGeneratorCorrectedTilesApply').mapGeneratorCorrectedTilesApply,
+                mapGeneratorVariations: _.minBy(results, 'mapGeneratorVariations').mapGeneratorVariations,
+                mapGeneratorEntitiesPrepare: _.minBy(results, 'mapGeneratorEntitiesPrepare').mapGeneratorEntitiesPrepare,
+                mapGeneratorEntitiesCompute: _.minBy(results, 'mapGeneratorEntitiesCompute').mapGeneratorEntitiesCompute,
+                mapGeneratorEntitiesApply: _.minBy(results, 'mapGeneratorEntitiesApply').mapGeneratorEntitiesApply,
+                crcComputation: _.minBy(results, 'crcComputation').crcComputation,
+                electricNetworkUpdate: _.minBy(results, 'electricNetworkUpdate').electricNetworkUpdate,
+                logisticManagerUpdate: _.minBy(results, 'logisticManagerUpdate').logisticManagerUpdate,
+                constructionManagerUpdate: _.minBy(results, 'constructionManagerUpdate').constructionManagerUpdate,
+                pathFinder: _.minBy(results, 'pathFinder').pathFinder,
+                trains: _.minBy(results, 'trains').trains,
+                trainPathFinder: _.minBy(results, 'trainPathFinder').trainPathFinder,
+                commander: _.minBy(results, 'commander').commander,
+                chartRefresh: _.minBy(results, 'chartRefresh').chartRefresh,
+                luaGarbageIncremental: _.minBy(results, 'luaGarbageIncremental').luaGarbageIncremental,
+                chartUpdate: _.minBy(results, 'chartUpdate').chartUpdate,
+                scriptUpdate: _.minBy(results, 'scriptUpdate').scriptUpdate
+            }
         }
+        // lastly, if  our trial is a 'SavedTrial' type, we will make sure we convert all these records into SavedFlowRecords
+        if (trial instanceof Trial && GameFlowSystemRecord?.fromRecords) {
+
+            results = GameFlowSystemRecord.fromRecords(results, trial.id);
+
+        }
+        trial.systemMetadata = metadata;
         return results;
     }
 
@@ -896,6 +1064,9 @@ export class Factory {
         // deletes all raw files associated with this trial in the script-output directory
         let trialId = typeof trial === 'string' ? trial : trial.id;
         try {
+            if (trial instanceof Trial)
+                trial.rawSystemText = undefined;
+
             await Promise.allSettled([
                 fs.rm(path.join(Factory.scriptOutputPath, 'data', `${trialId}_item.jsonl`)),
                 fs.rm(path.join(Factory.scriptOutputPath, 'data', `${trialId}_elec.jsonl`)),
@@ -935,7 +1106,7 @@ export class Factory {
             // BUT WAIT!! We are changing this - just check if there's a <mod-list-id>.dat file in the mod-list folder
             // if there is, symlink it to the mod-settings.dat file
             if (source?.modList?.id && await fs.exists(path.join(Factory.modsCachePath, `${source.modList.id}.dat`)))
-                await fs.symlink(path.join(Factory.modsCachePath, `${source.modList.id}.dat`), path.join(Factory.factoryDataPath, 'mod-settings.dat'));
+                await fs.symlink(path.join(Factory.modsCachePath, `${source.modList.id}.dat`), path.join(Factory.modsPath, 'mod-settings.dat'));
 
             // then, we need to write the mod-list.json file. Factorio uses this to load the actual list of mods
             await source.modList.writeModListFile(path.join(Factory.modsPath, 'mod-list.json'));
@@ -1128,7 +1299,7 @@ export class Factory {
             // get most recent version first
             v = await FactorioApi.getLatestModVersion(mod.substring(0, mod.lastIndexOf('_')))
         } else {
-            v = mod.substring(mod.lastIndexOf('_') + 1, mod.indexOf('.zip'));
+            v = mod.substring(mod.lastIndexOf('_') + 1, mod.indexOf('.zip') == -1 ? undefined : mod.indexOf('.zip'));
         }
 
         // first, check if this mod is already cached
@@ -1144,14 +1315,16 @@ export class Factory {
     * We download all mods into the 'mods-cache' folder on 'preparing' a trial. This allows us to then quickly and easily
     * move files to the 'mods' directory later on, just before the trial itself is run that requires them.
     * */
-    static async cacheModList(mods: ModList) {
+    static async cacheModList(modList: ModList) {
         // We need to make sure all listed mods are present in the mods-cache
         // if a version does not exist in the name, we will assume latest version and append it to the name
-        for (let i = 0; i < mods.mods.length; i++) {
-            let v = await Factory.cacheMod(mods.mods[i])
-            if (mods.mods[i].endsWith('_latest.zip'))
-                mods.mods[i] = `${mods.mods[i].substring(0, mods.mods[i].lastIndexOf('_'))}_${v}.zip`
+        for (let i = 0; i < modList.mods.length; i++) {
+            let v = await Factory.cacheMod(modList.mods[i])
+            if (modList.mods[i].endsWith('_latest'))
+                modList.mods[i] = modList.mods[i].substring(0, modList.mods[i].lastIndexOf('_latest')) + '_' + v
         }
+        return await FactoryDatabase.saveModList(modList);
+
         //await fs.ensureSymlink('','', 'file')
     }
 

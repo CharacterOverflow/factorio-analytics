@@ -25,8 +25,8 @@ import {Column, Entity, ManyToOne, PrimaryColumn} from "typeorm";
 
 export class ISource {
     id?: string;
-    blueprint?: string;
-    saveGamePath?: string;
+    text?: string;
+    variant?: string;
     name?: string;
     desc?: string;
     tags?: string[];
@@ -90,18 +90,25 @@ export class Source implements ISource {
         this.desc = params.desc;
         this.tags = params.tags ? params.tags : [];
         this.modList = params.modList ? ModList.ensureObject(params.modList) : undefined
-        if (params.blueprint && params.saveGamePath)
-            throw new Error('Cannot have both blueprint and savegame path specified in creating a Source');
 
-        if (params.blueprint) {
-            this.variant = 'blueprint';
-            this.text = params.blueprint.replaceAll('\n', '');
-        } else if (params.saveGamePath) {
-            this.variant = 'savegame';
-            this.text = params.saveGamePath
+        // only need 'text' if the 'id' is not set. if id is already set, dont need text here
+        if (!params.variant || (!params.text && !params.id))
+            throw new Error('Need both variant and text fields to create a Source');
+
+        if (params.text) {
+            if (params.variant == 'blueprint') {
+                this.variant = params.variant;
+                this.text = params.text.replaceAll('\n', '');
+            } else if (params.variant == 'savegame') {
+                this.variant = params.variant;
+                this.text = params.text
+            } else
+                throw new Error('Must have either blueprint or savegame variant specified in creating a Source');
+            this.updateHash()
+        } else if (params.id) {
+            this.id = params.id;
         } else
-            throw new Error('Must have either blueprint or savegame path specified in creating a Source');
-        this.updateHash()
+            throw new Error('Need either text or id to create a Source');
     }
 
     updateHash(): boolean {

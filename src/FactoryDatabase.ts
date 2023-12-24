@@ -9,8 +9,10 @@ import {
     GameFlowElectricRecord,
     GameFlowItemRecord,
     GameFlowPollutionRecord,
-    GameFlowSystemRecord
+    GameFlowSystemRecord, IGameFlowCircuitResults, IGameFlowItemResults, IGameFlowRecordCounts, IGameFlowResults
 } from "./Dataset";
+import {DatasetAnalysis} from "./DatasetAnalysis";
+import {FactorioApi} from "./FactorioApi";
 
 export class FactoryDatabase {
 
@@ -35,6 +37,18 @@ export class FactoryDatabase {
         })
         await FactoryDatabase.FactoryDB.initialize()
         await FactoryDatabase.FactoryDB.synchronize(false)
+    }
+
+    // loads file at 'rootDir/factory-storage/user.json'
+    // uses the user and token value here
+    // if env values are set, they override the file-loaded values
+    // need save functionality as well
+    static async loadUserFile() {
+
+    }
+
+    static async saveUserFile() {
+        FactorioApi
     }
 
     static async deleteTrialData(trialId: string) {
@@ -65,34 +79,64 @@ export class FactoryDatabase {
         }
     }
 
-    static async loadDataset(trialId: string, category: string) {
+    static async loadDatasetMetadata(trialId: string): Promise<IGameFlowRecordCounts> {
+        // need to load the trial data, then generate 'generic' summary to return
+        if (!trialId)
+            throw new Error('Invalid trialId')
+
+        // STOP!!!! Dont actually analyze data here - this is just meant to return info like number of records, etc
+        let itemRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).count({where: {trialId}})
+        let electricRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowElectricRecord).count({where: {trialId}})
+        let circuitRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).count({where: {trialId}})
+        let pollutionRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).count({where: {trialId}})
+        let systemRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).count({where: {trialId}})
+
+        return {
+            item: itemRecords,
+            electric: electricRecords,
+            circuit: circuitRecords,
+            pollution: pollutionRecords,
+            system: systemRecords,
+        }
+
+    }
+
+    static async loadDatasetRecords(trialId: string, category: string): Promise<IGameFlowResults> {
         switch (category) {
             case 'item':
-                return await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).find({
-                    where: {
-                        trialId,
-                    }
-                })
+                return {
+                    data: await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).find({
+                        where: {
+                            trialId,
+                        }
+                    }),
+                }
             case 'electric':
-                throw new Error('Electric not supported')
+                throw new Error('Electric not yet supported')
             case 'circuit':
-                return await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).find({
-                    where: {
-                        trialId,
-                    }
-                })
+                return {
+                    data: await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).find({
+                        where: {
+                            trialId,
+                        }
+                    }),
+                }
             case 'pollution':
-                return await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).find({
-                    where: {
-                        trialId,
-                    }
-                })
+                return {
+                    data: await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).find({
+                        where: {
+                            trialId,
+                        }
+                    }),
+                }
             case 'system':
-                return await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).find({
-                    where: {
-                        trialId,
-                    }
-                })
+                return {
+                    data: await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).find({
+                        where: {
+                            trialId,
+                        }
+                    }),
+                }
         }
         throw new Error('Invalid category - ' + category)
     }
@@ -110,14 +154,17 @@ export class FactoryDatabase {
     }
 
     static async loadTrial(id: string, includeSource: boolean = true): Promise<Trial> {
-        return await FactoryDatabase.FactoryDB.getRepository(Trial).findOne({
+        let t = await FactoryDatabase.FactoryDB.getRepository(Trial).findOne({
             where: {
                 id
             },
             relations: includeSource ? [
-                'source',
+                'source'
             ] : []
         })
+        if (includeSource)
+            t.source = await FactoryDatabase.loadSource(t.source.id, includeSource)
+        return t;
     }
 
     static async loadSource(id: string, includeModList: boolean = true) {
@@ -136,6 +183,25 @@ export class FactoryDatabase {
             where: {
                 id
             }
+        })
+    }
+
+    static async deleteTrial(id: string) {
+        await FactoryDatabase.deleteTrialData(id)
+        await FactoryDatabase.FactoryDB.getRepository(Trial).delete({
+            id
+        })
+    }
+
+    static async deleteSource(id: string) {
+        await FactoryDatabase.FactoryDB.getRepository(Source).delete({
+            id
+        })
+    }
+
+    static async deleteModList(id: string) {
+        await FactoryDatabase.FactoryDB.getRepository(ModList).delete({
+            id
         })
     }
 

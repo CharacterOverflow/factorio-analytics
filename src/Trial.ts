@@ -43,7 +43,10 @@ export interface ITrial {
     rawSystemText?: string;
     metadata?: any;
     itemMetadata?: any;
+    electricMetadata?: any;
+    circuitMetadata?: any;
     pollutionMetadata?: any;
+    systemMetadata?: any;
 }
 
 // one of the main classes needed to do much of anything
@@ -183,6 +186,12 @@ export class Trial implements ITrial {
     })
     pollutionMetadata: any = null;
 
+    @Column({
+        nullable: true,
+        type: 'simple-json'
+    })
+    systemMetadata: any = null;
+
     /*static ensureObject(trial: ITrial): Trial {
         let a = trial as Trial
         if (a.dataFiles)
@@ -207,25 +216,27 @@ export class Trial implements ITrial {
 
     constructor(params: ITrial = null) {
 
-        // In the event the constructor was called null, we will allow and still create an ID. ORMs can do this at times
-        this.id = randomUUID();
-        this.createdAt = new Date()
-
         // we allow no-param construction of any class - this helps with ORMs and type casting
         if (!params)
             return;
+
+        // In the event the constructor was called null, we will allow and still create an ID. ORMs can do this at times
+        this.id = params?.id ?? randomUUID();
+        this.createdAt = new Date()
 
         // If our source is a string, we need to create the source object automatically
         if (params.source && typeof params.source == 'string') {
             if ((params.source as string).endsWith('.zip')) {
                 // create save source
                 this.source = new Source({
-                    saveGamePath: params.source,
+                    text: params.source,
+                    variant: 'savegame'
                 })
             } else {
                 // create blueprint source
                 this.source = new Source({
-                    blueprint: params.source,
+                    text: params.source,
+                    variant: 'blueprint'
                 })
             }
         } else if (params.source) {
@@ -253,6 +264,8 @@ export class Trial implements ITrial {
         this.recordPollution = (params.recordPollution  != undefined) ? params.recordPollution : false
 
         this.recordSystem = (params.recordSystem  != undefined) ? params.recordSystem : false
+
+        this.stage = "new"
     }
 
     setStage(stage: TTrialStages) {

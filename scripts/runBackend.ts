@@ -37,79 +37,19 @@ const bpFile = path.join(process.cwd(), 'factory/examples/45spm_base.bp');
 * */
 
 async function main() {
-    console.log('SETUP DEBUG STAGE 1 COMPLETE');
 
     await Factory.initialize({
-        installDir: '/home/overflow/Apps/factorio_auto_v3',
-        hideConsole: false
+        installDir: '/home/overflow/Apps/factorio_auto_v5',
+        hideConsole: false,
         // user info is provided auto-magically from oldenv.txt
-    })
+    }, 'alpha')
     await FactoryDatabase.initialize()
     await FactoryBackend.startServer();
-
-    const circuitTestBp = await fs.readFile('/home/overflow/Projects/factorio-analytics/factory/examples/circuit_test.txt', 'utf8');
-    //const scienceTestBp = await fs.readFile('/home/overflow/Projects/factorio-analytics/factory/examples/45spm_base.bp', 'utf-8');
-
-    // try running a basic new trial. circuts to test with for now
-    let circSource = new Source({
-        text: circuitTestBp,
-        variant: 'blueprint',
-        name: 'Circuit Test',
-        desc: 'A simple test to see if circuit data is being recorded properly',
-        tags: ['circuit', 'test']
-    })
-
-    let trial = new Trial({
-        source: circSource,
-        length: 7200,
-        tickInterval: 1,
-        initialBots: 200,
-        recordItems: true,
-        recordSystem: true,
-        recordCircuits: true,
-        recordPollution: true,
-    })
-
-    try {
-        let data = await Factory.runTrial(trial)
-        console.log(data);
-    } catch (e) {
-        console.log(e)
-    }
-
-
-
-
-    // lets try running a blueprint test
-    // let bp = fs.readFileSync(bpFile, 'utf8');
-    //
-    // let source = new SavedSource({
-    //     blueprint: bp,
-    //     name: '45spm_base',
-    // });
-
-    // let t = new SavedTrial({
-    //     source,
-    //     length: 7200,
-    //     tickInterval: 60,
-    //     initialBots: 200,
-    //     recordSystem: true,
-    //     recordCircuits: true,
-    //     recordPollution: true,
-    // })
-    //await t.ready
-    //await FactoryDatabase.saveTrial(t);
-    //let v = await FactoryDatabase.loadTrial(t.id);
-
-    //let results = await Factory.analyzeTrial(t, true);
-
-    //await FactoryDatabase.saveTrial(t, false)
-
 }
 
 main().then(async (t) => {
 
-    console.log('TRIAL RUN!');
+    console.log('Started');
 }).catch((e) => {
     console.error(e);
 })

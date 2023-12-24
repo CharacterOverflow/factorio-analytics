@@ -19,7 +19,6 @@ export interface IFactorioApiParams {
     username: string;
     token: string;       // no password! Dont be lazy - log in and get the damn token already. Mods wont work without token, and only headless can be downloaded without token
     dataPath: string;    // path to factorio data folder
-    installPath: string; // path to factorio install folder
 }
 
 export interface IFactorioApiVersionMigrateRecord {
@@ -38,16 +37,83 @@ export interface IFactorioApiVersionRecord {
     headless: string;
 }
 
+export interface IFactorioApiModListResult {
+    pagination: IFactorioApiPagination;
+    results: IFactorioApiModShortRecord[];
+}
+
+export interface IFactorioApiModReleaseRecord {
+    download_url: string;
+    file_name: string;
+    info_json: {
+        factorio_version: string
+    }
+    released_at: string;
+    version: string;
+}
+
+export interface IFactorioApiModShortRecord {
+    name: string;
+    title: string;
+    owner: string;
+    summary: string;
+    downloads_count: number;
+    category: string;
+    score: number;
+    latest_release?: IFactorioApiModReleaseRecord;
+}
+
+export interface IFactorioApiModFullRecord extends IFactorioApiModShortRecord {
+    thumbnail: string;
+    changelog: string;
+    created_at: string;
+    description: string;
+    source_url: string;
+    homepage: string;
+    tags: any[]
+    license: any
+}
+
+export interface IFactorioApiPagination {
+    count: number;
+    page: number;
+    page_count: number;
+    page_size: number;
+    links: {
+        first: string | null;
+        last: string | null;
+        next: string | null;
+        prev: string | null;
+    }
+}
+
 export class FactorioApi {
 
     private static username: string;
     private static token: string;
     private static dataPath: string;
-    private static installPath: string;
 
     static get downloadFolder(): string {
         return path.join(FactorioApi.dataPath, 'downloads');
     }
+
+    static async loadUserFile(path: string, dataPath?: string) {
+        if (dataPath)
+            FactorioApi.dataPath = dataPath;
+        let fd = await fs.readJson(path, 'utf8')
+        FactorioApi.username = fd.username;
+        FactorioApi.token = fd.token;
+    }
+
+    static async saveUserFile(path: string) {
+        // write to path the user file
+        await fs.writeFile(path, JSON.stringify({
+            username: FactorioApi.username,
+            token: FactorioApi.token
+        }))
+    }
+
+    static cachedModList: IFactorioApiModListResult;
 
     // Gets set to true if the user has successful calls using their token. False is linux headless only!!
     static isAuthenticated: boolean = false;
@@ -63,16 +129,14 @@ export class FactorioApi {
         FactorioApi.isAuthenticated = false;
     }
 
-    static async queryApi(url: string) {
-        let params;
+    static async queryApi(url: string, params: any = {}) {
 
         if (FactorioApi.isAuthenticated || (this.username && this.token))
             params = {
+                ...params,
                 username: this.username,
                 token: this.token
             }
-        else
-            params = {}
 
         try {
             let resp = await axios.get(url, {
@@ -98,7 +162,9 @@ export class FactorioApi {
         FactorioApi.username = params.username;
         FactorioApi.token = params.token;
         FactorioApi.dataPath = params.dataPath;
-        FactorioApi.installPath = params.installPath;
+
+        if (!FactorioApi.username && fs.existsSync(path.join(FactorioApi.dataPath, 'factory-storage', 'user.json')))
+            await FactorioApi.loadUserFile(path.join(FactorioApi.dataPath, 'factory-storage', 'user.json'));
 
         Logging.log('info', 'Initializing Factorio API - Grabbing version information')
 
@@ -109,9 +175,37 @@ export class FactorioApi {
         if (FactorioApi.versionMap['core-linux64']) {
             FactorioApi.isAuthenticated = true;
             Logging.log('info', `Successfully authenticated with user ${FactorioApi.username}`);
+            await FactorioApi.saveUserFile(path.join(FactorioApi.dataPath, 'factory-storage', 'user.json'));
         } else {
             Logging.log('warn', `Not authenticated with Factorio API. Some features may be unavailable.`);
         }
+        FactorioApi.cachedModList = await FactorioApi.listFactorioMods(undefined, 'max')
+    }
+
+    static async listFactorioMods(page: number = undefined, pageSize: number | 'max' = undefined,
+                                  sort: 'name' | 'created_at' | 'updated_at' = undefined, sortOrder: 'asc' | 'desc' = undefined, namelist: string[] = undefined)
+        : Promise<IFactorioApiModListResult> {
+        // query parameters can be any of the following...
+        /*
+        * page integer,
+        * page_size integer, or 'max',
+        *  sort name, created_at, or updated_at,
+        *  sort_order asc or desc,
+        *  namelist array of strings - ONLY returns mods with given names,
+        * */
+        let params = {
+            page: page == null ? undefined : page,
+            page_size: pageSize == null ? undefined : pageSize,
+            sort: sort == null ? undefined : sort,
+            sort_order: sortOrder == null ? undefined : sortOrder,
+            namelist: namelist == null ? undefined : namelist,
+            version: FactorioApi.latestVersion.stable.headless
+        }
+        return await FactorioApi.queryApi('https://mods.factorio.com/api/mods', params);
+    }
+
+    static async getModInfo(name: string): Promise<IFactorioApiModFullRecord> {
+        return await FactorioApi.queryApi(`https://mods.factorio.com/api/mods/${name}/full`);
     }
 
     static async getLatestModVersion(name: string): Promise<string> {
@@ -173,7 +267,7 @@ export class FactorioApi {
         // if the output file at the end is less than a kb (really, if its less than like 1mb) then we know something went wrong
         let dlCommand: string;
         if (FactorioApi.isAuthenticated) {
-            dlCommand = `curl -G "${url}?username=${process.env.FACTORIO_USER}&token=${process.env.FACTORIO_TOKEN}" -L --silent --output "${outputLocationPath}"`;
+            dlCommand = `curl -G "${url}?username=${FactorioApi.username}&token=${FactorioApi.token}" -L --silent --output "${outputLocationPath}"`;
         } else
             dlCommand = `curl -G "${url}" -L --silent --output "${outputLocationPath}"`;
 

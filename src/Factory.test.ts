@@ -21,7 +21,7 @@ describe("Testing the Factory class", () => {
             hideConsole: false,
             username: process.env.FACTORIO_USER,
             token: process.env.FACTORIO_TOKEN,
-            // user info is provided auto-magically from .env
+            // user info is provided auto-magically from oldenv.txt
         })
 
         expect(Factory.factoryInstallPath).toBe('/home/overflow/Apps/unit_test_factorio');

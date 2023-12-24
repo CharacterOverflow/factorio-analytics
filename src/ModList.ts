@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import crypto, {randomUUID} from "crypto";
 import {Column, Entity, PrimaryColumn} from "typeorm";
+import {lastIndexOf} from "lodash";
 
 export interface IModList {
     id?: string
@@ -88,7 +89,7 @@ export class ModList implements  IModList {
         if (!params)
             return;
 
-        this.id = randomUUID();
+        this.id = params.id ?? randomUUID();
         this.name = params.name;
         this.desc = params.desc;
 
@@ -97,6 +98,8 @@ export class ModList implements  IModList {
         else if (params.mods.length > 0) {
             for (let i = 0; i < params.mods.length; i++) {
                 let mod = params.mods[i]
+
+                // remove .zip if it exists at the end
                 mod = mod.endsWith('.zip') ? mod.substring(0, mod.length - 4) : mod;
 
                 // Find the first '.', which will help is identify the version number and string format
@@ -104,12 +107,28 @@ export class ModList implements  IModList {
                 let lastUnderscoreIndex = this.name.lastIndexOf('_');
                 if (firstDotIndex === -1 || lastUnderscoreIndex === -1) {
                     // no version, just mod name itself
-                    // set to latest. When mod caching comes around to check it, will grab latest version and change this
-                    mod = mod + '_latest.zip'
+                    // check to make sure the version here isn't 'latestl' already - else, add it
+                    if (!mod.endsWith('_latest'))
+                        mod = mod + '_latest'
                 }
                 this.mods.push(mod);
             }
         }
+    }
+
+    static parseModName(rawName: string): string {
+        let mod = rawName
+        mod = mod.endsWith('.zip') ? mod.substring(0, mod.length - 4) : mod;
+
+        // Find the first '.', which will help is identify the version number and string format
+        let firstDotIndex = this.name.indexOf('.')
+        let lastUnderscoreIndex = this.name.lastIndexOf('_');
+        if (firstDotIndex === -1 || lastUnderscoreIndex === -1) {
+            // no version, just mod name itself
+            // set to latest. When mod caching comes around to check it, will grab latest version and change this
+            mod = mod + '_latest.zip'
+        }
+        return mod
     }
 
 }

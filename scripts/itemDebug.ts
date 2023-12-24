@@ -18,6 +18,9 @@ import {ModList} from "../src/ModList";
 import {Source} from "../src/Source";
 import {FactoryDatabase} from "../src/FactoryDatabase";
 import {FactoryBackend} from "../src/FactoryBackend";
+import {DatasetQuery} from "../src/DatasetAnalysis";
+import {IGameFlowItemTick} from "../src/Dataset";
+import {FactorioApi} from "../src/FactorioApi";
 
 dotenv.config();
 
@@ -42,7 +45,7 @@ async function main() {
     await Factory.initialize({
         installDir: '/home/overflow/Apps/factorio_auto_v3',
         hideConsole: false
-        // user info is provided auto-magically from .env
+        // user info is provided auto-magically from oldenv.txt
     })
     await FactoryDatabase.initialize()
     await FactoryBackend.startServer();
@@ -50,18 +53,21 @@ async function main() {
     //const circuitTestBp = await fs.readFile('/home/overflow/Projects/factorio-analytics/factory/examples/circuit_test.txt', 'utf8');
     const scienceTestBp = await fs.readFile('/home/overflow/Projects/factorio-analytics/factory/examples/45spm_base.bp', 'utf-8');
 
+    let s = await FactoryDatabase.listSources(50)
+
     // try running a basic new trial. circuts to test with for now
-    let circSource = new Source({
-        blueprint: scienceTestBp,
+    let sciSource = new Source({
+        text: scienceTestBp,
+        variant: 'blueprint',
         name: 'Sci Test',
         desc: 'A simple test to see if sci data is being recorded properly',
         tags: ['test']
     })
 
     let trial = new Trial({
-        source: circSource,
-        length: 7200,
-        tickInterval: 1,
+        source: sciSource,
+        length: 7200 * 2,
+        tickInterval: 60,
         initialBots: 200,
         recordItems: true,
         recordSystem: true,
@@ -69,9 +75,24 @@ async function main() {
         recordPollution: true,
     })
 
+    await FactoryDatabase.saveTrial(trial, true)
+
     try {
-        let data = await Factory.analyzeTrial(trial)
-        console.log(data);
+        let data = await Factory.analyzeTrial(trial, true, true)
+
+        let q1 = new DatasetQuery<IGameFlowItemTick>(data.items.data, {
+            smoothing: 5,
+            valueField: 'cons',
+            labelFilter: 'copper-plate'
+            // only use excludeEmpty if making a scatter plot of 'produced per tick' or something
+        })
+        let ul = q1.uniqueLabels();
+        let gl = q1.groupByLabel();
+        let g2 = q1.groupByTickChunk(q1.dataset, 1800)
+        let sl = q1.summaryByLabel();
+        let tc = q1.summaryByTickChunk(q1.dataset, 1800)
+        let mlist = await FactorioApi.listFactorioMods(undefined, 'max')
+        console.log(data, ul, gl, g2, sl, tc);
     } catch (e) {
         console.log(e)
     }

@@ -7,7 +7,8 @@ describe('Testing the Source class', () => {
 
     beforeEach(() => {
         source = new Source({
-            blueprint: testBp,
+            text: testBp,
+            variant: 'blueprint',
             name: "TestSource",
             desc: "TestDesc",
             tags: ["tag1", "tag2"],

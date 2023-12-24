@@ -1,29 +1,56 @@
 import {Trial} from "./Trial";
 import {Column, Entity, PrimaryColumn} from "typeorm";
 
-export interface IGameFlowItemResults {
+export interface IPlotData {
+    x: number;
+    y: number;
+    tag?: string; // field name used to populate 'y' field. 'x' is ALWAYS tick
+    label?: string; // label for the series
+}
+
+export interface IGameFlowRecordCounts {
+    item?: number;
+    electric?: number;
+    circuit?: number;
+    pollution?: number;
+    system?: number;
+}
+
+export interface IGameFlowResults {
+    data: IGameFlow[];
+    minTick?: number;
+    maxTick?: number;
+    labels?: string[];
+    cachedAt?: Date // set when results are cached in backend
+}
+
+export interface IGameFlowItemResults extends IGameFlowResults {
     data: IGameFlowItemTick[];
     trial: Trial
+    averageConsByLabel?: { [key: string]: number }
+    averageProdByLabel?: { [key: string]: number }
 }
 
-export interface IGameFlowElectricResults {
+export interface IGameFlowElectricResults extends IGameFlowResults {
     data: IGameFlowElectricTick[];
     trial: Trial
+    // add more here once i figure out WTF this electric data format even is
 }
 
-export interface IGameFlowCircuitResults {
+export interface IGameFlowCircuitResults extends IGameFlowResults {
     data: IGameFlowCircuitTick[];
     trial: Trial
 }
 
-export interface IGameFlowPollutionResults {
+export interface IGameFlowPollutionResults extends IGameFlowResults {
     data: IGameFlowPollutionTick[];
     trial: Trial
 }
 
 export interface IGameFlowSystemResults {
     data: IGameFlowSystemTick[];
-    trial: Trial
+    trial: Trial;
+    // what other system data processing do we want?
 }
 
 
