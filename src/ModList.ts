@@ -10,7 +10,7 @@ export interface IModList {
     mods: string[]
 }
 
-@Entity('modlists')
+@Entity('modlist')
 export class ModList implements  IModList {
 
     @PrimaryColumn()

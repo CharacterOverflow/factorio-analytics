@@ -18,6 +18,7 @@ import {IModList, ModList} from "./ModList";
 import fs from "fs-extra";
 import crypto from "crypto";
 import {Column, Entity, ManyToOne, PrimaryColumn} from "typeorm";
+import * as zlib from "zlib";
 
 /*
 * Having either blueprint or saveGamePath is  required. one or the other! If both are passed in, an error will be thrown
@@ -33,7 +34,7 @@ export class ISource {
     modList?: ModList | IModList;
 }
 
-@Entity('sources')
+@Entity('source')
 export class Source implements ISource {
 
     @PrimaryColumn()
@@ -132,5 +133,25 @@ export class Source implements ISource {
             this.tags.splice(this.tags.indexOf(tag), 1);
         }
     }
+
+    // Load blueprint from an existing one
+    static blueprintStringToObject(bpStr: string): any {
+        const version = bpStr.slice(0, 1);
+        if (version !== '0') {
+            throw new Error('Unknown Blueprint Prefix, blueprint may be partial or too old/new');
+        }
+        let data: any = null;
+        try {
+            data = JSON.parse(
+                zlib
+                    .inflateSync(Buffer.from(bpStr.slice(1), 'base64'))
+                    .toString('utf8'),
+            );
+        } catch (e) {
+            throw e;
+        }
+        return data
+    }
+
 
 }

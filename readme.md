@@ -1,35 +1,35 @@
 # factorio-analytics
 
-A package that gives you in-depth details and statistics normally only seen in-game. 
+#### Version 2.0.3
+
+A package that gives you in-depth details and statistics normally only seen in-game.
 
 This library utilizes the factorio executable locally, so a copy of Factorio is also required.
 
-### Recommended Setup
+### Quick Links
 
-- Linux (untested on Windows)
-- Set FACTORIO_USER and FACTORIO_TOKEN ENV variables to your username and factorio.com API token
-  - This token is used to download the game and mods
-  - Available at: https://www.factorio.com/profile
-  - If you do NOT provide a FACTORIO_USER and FACTORIO_TOKEN, only the server (headless) version can be used, and no mods will be downloaded
-- Set FACTORIO_INSTALL ENV variable to a folder to use for installing Factorio
-  - I recommend using an EMPTY FOLDER, and letting the code install and use the game itself
-  - If you choose, you can identify an existing install of Factorio (NON-STEAM)
-- A Factorio Blueprint (or savegame) that you want to test / analyze
-  - Remember to add Infinity Chests to your blueprint to spawn source items! If your blueprint does not include these to provide items, nothing will be done in-game
-
-#### Coming soon
-
-- TSDoc documentation and site
-- Unit Testing using AVA
-- More repositories that will manage API/CLI usage, while this repository focuses on core functionality
+- [Setup](#getting-started)
+- [Install](#install-via-npm)
+- [Process Explanation](#process-explanation)
 
 ## Getting Started
 
 ### Usage
-This package is intended to be used with NodeJS, for server use only. It is meant to be used as an NPM module and called
-by other code you must write. 
 
-In the future, there will be a dedicated repository to API and CLI usage - this repository is only supposed to represent core processes
+This package is intended to be used with NodeJS, for server use only. It is meant to be used as an NPM module and called
+by other code you must write.
+
+While you CAN use this package for frontend projects (such as with Vue, React, etc), it is recommended to only use and
+import Interface definitions. The actual code itself makes file references in some points, and I haven't gone through
+to test for compatibility. Use at your own risk!
+
+### Requirements
+
+- Linux (untested on Windows, but should work)
+- NodeJS 16+
+- A Factorio Blueprint (or savegame) that you want to test / analyze
+    - Remember to add Infinity Chests to your blueprint to spawn source items! If your blueprint does not include these
+      to provide items, nothing will be done in-game
 
 ### Install via NPM
 
@@ -37,253 +37,301 @@ In the future, there will be a dedicated repository to API and CLI usage - this 
 $ npm install factorio-analytics
 ```
 
+You can also download the source and include it in your project directly.
+
 ### Setting ENV variables
+
 You can either define these variables in your environment, or by creating a .env file in the root folder.
 
 ENV values that can be set...
-- `FACTORIO_INSTALL`
-  - The directory to install Factorio in (or installation to use)
-- `FACTORIO_USER`
-  - The USERNAME on factorio.com to use
-- `FACTORIO_TOKEN`
-  - The TOKEN found on your profile at https://www.factorio.com/profile
-- `FACTORIO_BUILD`
-  - The 'build' of Factorio to download, if applicable. 'alpha' or 'headless'
-  - Alpha is the normal build of the game, and requires the game purchased to use!
-- `FACTORIO_SET_MODS`
-  - Determines if the process can modify mod-list.json. If false, will only obey mod list from mod-list.json, not code
-  - If you are providing mod names in code during initialization, set this to true
-- `FACTORIO_DL_MODS`
-  - Whether or not we are allowed to download mods
-  - If you need specific versions of mods or the game, set this to false
-- `FACTORIO_DL_TIMEOUT`
-  - After how long a download should be force-stopped - both mods and game download itself
 
-**NOTE** As of version  2.0, all options except for FACTORIO_SET_MODS, FACTORIO_DL_MODS, and FACTORIO_DL_TIMEOUT can be
-set during the 'Factory.initialization' call
+- `FACTORIO_INSTALL`
+    - The directory to install Factorio in (or installation to use)
+- `FACTORIO_USER`
+    - The USERNAME on factorio.com to use (NOT email)
+- `FACTORIO_TOKEN`
+    - The TOKEN found on your profile at https://www.factorio.com/profile
+- `FACTORIO_BUILD`
+    - The 'build' of Factorio to download, if applicable. Options are 'alpha' or 'headless'
+    - Headless is default, and includes no graphical assets. This is the default build for servers
+        - If you want to use advanced debugging on blueprints you use (load the test scenario), please use 'alpha'
+    - Alpha is the normal build of the game, and requires the game purchased to use! Login after launching is not
+      required
+- `FACTORIO_VERSION`
+    - Version of Factorio to download (if applicable). Defaults to latest stable version
+- `FACTORIO_DL_TIMEOUT`
+    - After how long a download should be force-stopped - both mods and game download itself
+
+## Basic Explanation
+
+Factorio Analytics is a very simple package in its core logic. There are some core concepts you should understand before
+using it. I also recommend looking through the code examples below
+
+- **Source** A Source represents either a Blueprint String or the path to a save game
+- **ModList** A ModList is a list of mods and their versions that should be used with a given Source
+- **Trial** A Trial is when you run a Source with specific settings to extract data
+
+### How does the 'Trial' process work?
+
+**IF TESTING A BLUEPRINT**
+
+1. Building the Benchmark Scenario for Blueprint
+2. Running the Scenario
+3. Reading and Analyzing the data
+
+**IF TESTING A SAVEGAME**
+
+1. Move savegame to scenario folder -> Make edits to convert to benchmark scenario
+2. Running the Scenario
+3. Reading and Analyzing the data
+
+The process of 'running the scenario' is done by calling the Factorio executable with specific parameters including
+the 'benchmark'
+command. This command will run the game at maximum speed for your hardware, as it's intended as a stress test
+
+Once a Trial has been run, data is available in the '{installDir}/script-output/data/' folder as individual .JSONL files
+by category
+
+You can then use the built-in 'Analyze' functionality to read and analyze this data, or use the files for your own
+purpose
+
+## Code Examples
 
 ### Starting the Factory
 
-The only hard 'requirement' for starting the factory is setting 'installDir' - which is set by process.env.FACTORIO_INSTALL by default if not provided
+Starting the Factory is easy, and only needs to be done once per runtime
 
-The example below shows a setup with barebones 'Krastorio2' installed. To run 'vanilla' and force-clear any mods, 
-ensure FACTORIO_SET_MODS = true and that the mods array is empty or undefined
+This will only initialize the most basic requirements + FactorioAPI (for Downloading and version checking)
 
-Mods MUST be defined during initialization, and any trials run afterwards will use these mods. This is to ensure steps like
-compiling the scenario are done WITH the specified mods, preventing mismatch and migration (slowdowns) when re-using this scenario for future trials
+Other classes you can 'initialize' are...
+
+- FactoryDatabase
+    - This will initialize the database connection, and allow you to save Sources, Trials, Modlists, and resulting
+      datasets to a DB
+- FactoryBackend
+    - This will initialize an API backend, allowing you to use the Factory as a service for other applications
+
+Shown below is the default (using ENV variables)
 
 ```ts
+import {FactoryBackend} from "./FactoryBackend";
+
 await Factory.initialize({
+
+    // Your factorio.com username (not email)
+    username: process.env.FACTORIO_USER,
+
+    // Your factorio.com token, found on your profile page. Required for mod downloading and game install
+    token: process.env.FACTORIO_TOKEN,
+
     // INSTALL DIR of factorio - inside this folder should be others like 'bin' and 'data'
     installDir: process.env.FACTORIO_INSTALL,
 
     // DATA DIR of factorio - inside this folder should be others like 'mods' and 'scenarios'. This is the user information about factorio
-    // NOTE - If you have installed Factorio to a custom location yourself, this will be the same as the installDir
     // NOTE 2 - If you are using Steam install, THIS WILL BE DIFFERENT than installDir
     dataPir: process.env.FACTORIO_INSTALL,
-    
+
     // List of mods that you want to include. If FACTORIO_SET_MODS is true, only these mods will be used and a new mod-list.json file created
     // If FACTORIO_DL_MODS = false, you will need to download the mods yourself and ensure some version of them exists in the /mods folder
-    mods: ['flib','Krastorio2','Krastorio2Assets'],
+    mods: [/*'flib', 'Krastorio2', 'Krastorio2Assets'*/],
 
     // Whether or not we want to hide console logs to the user. Will still be written to file factory.log no matter what
     hideConsole: false
 });
+
+// OPTIONAL BELOW - include if you want these features
+// Initialize database - by default, uses SQLITE - will EVENTUALLY be able to  use postgresql as well
+await FactoryDatabase.initialize();
+
+// Initialize API backend
+await FactoryBackend.startServer(3001);
+
+```
+
+### Set up a Blueprint Source
+
+The first step is to define what you want to test - in this example, a blueprint string.
+
+```ts
+// Load Source requirements
+const bpFile = path.join(process.cwd(), 'factory/examples/45spm_base.bp');
+const bpString = await fs.readFile(bpFile, 'utf8');
+
+// Create a Source for your blueprint string
+let mySource = new Source({
+    name: '45spm_base',
+    variant: 'blueprint',
+    text: bpString,
+    tags: ['test', 'test2'],
+    desc: `Loaded from ${bpFile}`
+})
+
+// Save the Source to the database - OPTIONAL, but useful for tracking and recommended
+mySource = await FactoryDatabase.saveSource(mySource)
 ```
 
 ### Set up a Blueprint Trial
 
-The first step is to define what you want to test - you need to provide at minimum the Blueprint string, length of the trial, and at least 1 Interval set depending on what data you would like to export about your factory.
+Now that we have a Source, we can create a Trial to run it with specific settings
 
-_This assumes a file 'filename.bp' exists with your blueprint string inside_
+The only required parameter is 'source' and at least one 'record[type]' field, defaults will fill the rest
 
 ```ts
-let bp = fs.readFileSync('filename.bp', 'utf8');
+    // Create a Trial object
+let myTrial = new Trial({
+    name: '45spm_base Trial 1',
+    desc: 'Trial run for items and pollution - every second for 1 hour',
+    source: mySource,
+    length: 216000,
+    tickInterval: 60,
+    recordItems: true,
+    // recordElectric: false, // CURRENTLY DISABLED, NOT FUNCTIONAL YET
+    recordCircuits: false,
+    recordPollution: true,
+    recordSystem: false,
+    initialBots: 50
+})
 
-let t = new Trial({
-  // Either a reference to the blueprint object, or a blueprint string itself to run
-  bp,
-  
-  // The name of the scenario to use, if you want to specify a custom one. Defaults to 'scenario-source' for basic benchmarking
-  // If you want to benchmark an existing SAVEGAME, specify the savegame name (including .zip)
-  scenario: 'scenario-source',  // MYSAVEGAME_FILE.zip for savegames
-
-  // how long (ticks) the trial will run for. Remember, factorio is locked at 60 ticks per second
-  length: 108000,
-
-  // how many ticks between item data polls (Items/fluids produced and consumed across the factory)
-  itemInterval: 300,
-
-  // how many ticks between elec data polls (The power usage and production of the factory, per network)
-  elecInterval: 60,
-
-  // how many ticks between circ data polls (Each circuit network, and the signals on it)
-  circInterval: 300,
-
-  // how many ticks between Pollution data polls (The pollution of the factory, total)
-  pollInterval: 900,
-
-  // how many ticks of performance info should be grouped together (Perf info is recorded every tick by default)
-  sysInterval: 300,
-
-  // how many logistic bots to start roboports with. If left as is, none will be placed
-  initialBots: 300,
-
-  // If true, the trial does no processing after the fact. Data is left raw, no files are moved. Remember to clean up!
-  raw: false
-});
+// Save the Trial to the database - OPTIONAL, but useful for tracking and recommended
+myTrial = await FactoryDatabase.saveTrial(myTrial)
 ```
 
-### Run a Blueprint Trial
-If this throws errors, there is likely something incorrect with your factorio install / paths provided to the install
-```ts
-let t = new Trial({/*see above*/});
-
-// Have the factory run your blueprint trial - depending on your PC and the settings for the Trial, this can take some time.
-await Factory.runTrial(t);
-
-// Write out to a file to explore the data, or do whatever you want to otherwise utilize this information.
-// Results are stored in the 'Data' object, see below for more details
-fs.writeFileSync('output.json', t.data);
-
-```
 ### Analyze and Use Data
+
 View all output data types [here](dist/src/Dataset.d.ts)
+
 ```ts
-// After running the trial, data is available...
-let d: Dataset = trial.data;
+// Analyze the trial
+// This will not only run the trial, but also clean up any/all data files.
+// All data files will be parsed, optionally saved to the database, summarized, and then deleted
+let results = await Factory.analyzeTrial(myTrial, true, true)
 
-// processed data aligned with tickrate is available in respective variables... 
-// each below is an array potentially thousands long, containing values over time (in ticks)
-// See types at 
-let export = {
-    itemStats: d.itemStats, // IGameFlowTick
-    elecStats: d.elecStats, // IGameElectricTick
-    circStats: d.circStats, // IGameCircuitTick
-    pollStats: d.pollStats, // IGamePollutionTick
-    sysStats: d.sysStats,   // ISystemTick
-}
-
-// If you choose to export raw files (NOT process data, keeping it raw) then the files variable will be set, 
-// containing the absolute filepath to the raw data
-console.log(d.files);
-
-// Lastly, you can use some helper functions on the Dataset to help provide fast information, such as...
-// compare to if we do it all-in-one
-let ratioIronToCoal = data
-        .get({category: 'item', label: 'iron-plate', spec: 'prod'})
-        .per({category: 'item', label: 'coal', spec: 'cons'});
-
-// or...
-let inserterPowerRatio = data
-        .get({category: 'electric', label: 'inserter', spec: 'cons'})
-        .per({category: 'electric', label: 'all', spec: 'cons'});
-
-// NOTE - you MUST be recording the needed data with the trial for certain functionality to work. For example, you cannot
-// calculate the 'inserterPowerRatio' above without recording elecStats (make sure elecInterval is defined)
+// write the outputting result dataset - contains all data by category
+console.log(results)
 ```
 
-### The 'Dataset' that is returned from running a trial can look something like this...
+### Run without Analysis, raw data
 
-![Example_Output.png](Example_Output.png)
+If this throws errors, there is likely something incorrect with your factorio install / paths provided to the install
 
-## Advanced 
+```ts
+// Run the trial
+// NOTE - Running a trial is the RAW method of running a trial - it will not analyze or load any of the resulting data
+// ONLY use 'runTrial' if you want to use the raw .jsonl files yourself
+await Factory.runTrial(myTrial)
 
-As of Version 2.0, Scenario and Mod handling has been 100% overhauled. You can now specify your own custom scenario to use for benchmarking,
-and have mods automatically download based on mod names specific in-application, or from mod-list.json
+// write the filenames of data to the console - do whatever you want with this data!
+console.log(myTrial.dataFiles)
 
-In addition, you can also benchmark your own savegame if you so desire! Pretty cool! Just specify the savegame you want to test
-as 'scenarioName' (including .zip), ensure the save file is in the /saves folder, then run! See script 'scripts/runSave.js'
+```
 
-### Mods
+### Accessing your local database directly
+If you want to write queries yourself to analyze trials, you can open the sqlite database directly
 
-Mods are automatically downloaded (assuming you provide a FACTORIO_TOKEN and FACTORIO_DL_MODS is not false)
+The database will only exist if you have initialized the database as shown below
 
-If 'mods' array is empty or undefined and FACTORIO_SET_MODS is not false, 'vanilla' factorio will be used
+```ts
 
-If FACTORIO_SET_MODS is false and FACTORIO_DL_MODS is true, then the existing mod-list.json file will be used
+// Initialize the database
+await FactoryDatabase.initialize()
+```
 
-### Compiling your own benchmark scenario
+From NodeJS, 
+You can save or load any database objects like this...
 
-Really want to benchmark an awesome mining setup? Or simulate how your wall would work with enemies spawned in at certain coordinates?
+```ts
+// Save a Source to the database
+let saveSource = await FactoryDatabase.saveSource(mySource)
 
-You can do that! You just need to be willing to craft your own scenario, following these steps below...
-
-FIRST OFF, I recommend making sure that the Factorio install used for this process is the 'ALPHA' version, meaning 'graphics' release. You can set this as the version to download by setting FACTORIO_BUILD=alpha in ENV.
-Having the graphical version to use will allow us to launch the game, edit a scenario, and save it as a copy all without dealing with files.
-
-To create your own custom scenario...
-1. Open your Install directory (FACTORIO_INSTALL).
-   - Open bin/x64/factorio (factorio.exe on Windows)
-2. After Factorio loads, go to 'Map Editor'
-3. Click 'Edit Scenario'
-4. Choose 'scenario-source'
-   - This is the 'source' scenario, which is considered default. I recommend using this for ALL custom benchmark scenarios
-5. Click 'Save As', then save it as some other scenario (NO SPACES, NO SPECIAL CHARACTERS BESIDES _)
-6. Now, go crazy and customize the scenario. Add in biters manually, add physical features, forests, ore, water, whatever your heart desires.
-   - Be aware - blueprint gets placed at EXACTLY 0,0 centered.
-7. Once changes are done, make sure you click 'save'
-8. In code, you can now specify your scenarioName and it will be used
-
-## CLI Usage
-
-### _CLI Usage is being depreciated in this package, and will instead be handled by factorio-analytics-cli_
-### Use at your own risk!
-**These scripts may be outdated and lack some functionality, but should still work so long as Factorio is already installed and 
-mods are either set up manually, or not used at all**
-
-Want to use all this functionality in a different application, or just otherwise access it via CLI? There are 2 premade scripts that you can use.
-
-**NOTE** YOU MUST SPECIFY THE ENVIRONMENT VARIABLE FACTORIO_INSTALL
-
-#### buildTrial
-
-This command will 'build' a given trial, which essentially sets it up to be run. From here, you can then launch the Factorio
-executable yourself and view the trial live!
-
-_(note, this is mostly for debugging)_
-
-```plantuml
-node /path/to/package/factorio-analytics/dist/scripts/buildTrial.js 
---bpFile /path/to/package/factorio-analytics/factory/examples/smallbasev2.txt
---length 108000 
---item 300
---elec 60
---circ 300
---pollution 900
---sys 300
---raw false
+// Load a Source from the database
+let loadSource = await FactoryDatabase.loadSource('sourceidhere')
 ```
 
 
-#### runTrial
+To save data from a trial into the database, I recommend adding the following parameters to the 'analyzeTrial' command
 
-This command will first 'build' a trial with your parameters, then command the Factory to 'run' the trial and output data to a specific file location.
-If no file location is specified, it will be written to the current directory instead with an ID filename.
-
-```plantuml
-node /path/to/package/factorio-analytics/dist/scripts/runTrial.js 
---bpFile /path/to/package/factorio-analytics/factory/examples/smallbasev2.txt
---length 108000 
---item 300
---elec 60
---circ 300
---pollution 900
---sys 300
---raw false
---file /path/to/output/output.json
+```ts
+// Analyze the trial
+// 2nd param is for summaries - metadata that gets saved in the header
+// 3rd param is for 'saveToDB' - automatically saves to database
+await Factory.analyzeTrial(myTrial, true, true)
 ```
 
+Once you analyze a trial as shown above, the database can be located at `{installDir}/factory-storage/factory.db`
+
+#### Using A Database IDE
+I prefer using DataGrip, but that's mostly because I use it for everything else. This is a paid product however.
+SQLite Browser is a free alternative that should work just as well for queries
+
+- DataGrip
+  - File -> New -> Data Source -> SQLite
+  - Enter the path to the database file in the 'file' field. Click Test Connection / Install Drivers as needed
+  - Click Apply and OK
+- SQLite Browser
+  - I have not used this myself, but it is the SQLite provided tool for viewing a database file
+  - Completely free, view instructions here on how to use it
+  - https://sqlitebrowser.org/
+
+#### Database Structure and Query Examples
+
+The database is very simple, and only has 8 tables
+
+- dataset_circuit
+- dataset_electric
+- dataset_item
+- dataset_pollution
+- dataset_system
+- modlist
+- source
+- trial
+
+Examples of some queries that I've found useful
+
+
+Query to list all trials in your database. Extremely basic example
+```sqlite
+select * from trial order by createdAt desc
+```
+Query to retrieve all item information for a trial, grouped by 5 minute buckets
+```sqlite
+SELECT
+    trialId,
+    label,
+    ROUND(tick / 18000) * 18000 AS tickBucket,
+    SUM(cons) AS totalCons,
+    SUM(prod) AS totalProd
+FROM dataset_items
+WHERE trialId = 'cfe98871-210f-40a5-a478-82258f0b21f1'
+GROUP BY trialId, label, tickBucket;
+```
+Query to look at ALL trials of a given source. This is more complex -
+1. Inner query groups all data by trial and calculates sums for each bucket
+2. Outer query removes the trial id by grouping by label and tickBucket
+   Final result - combined outputs from multiple trials of the same source
+```sqlite
+select label, tickBucket, avg(totalCons) as 'averageCons', avg(totalProd) as 'averageProd'
+From (select
+             label,
+             ROUND(tick / 18000) * 18000 AS tickBucket,
+             SUM(cons)                   AS totalCons,
+             SUM(prod)                   AS totalProd
+      from trial t
+               left join dataset_items di ON (di.trialId = t.id)
+      where sourceId = '94aab6543bea11d0a6c20e69b6cf7d3a75587ffa6d1d1e26e86c88a20b476447'
+      GROUP BY t.id, label, tickBucket) g
+group by label, tickBucket;
+```
 ### License
+
 **GNU GENERAL PUBLIC LICENSE**
 
 See 'LICENSE' in root directory
 
 ### Other
 
-Version 2.0 has some major changes overall, if you were using this package prior to 8/25/2023 and want to go back, I recommend
-going back to version 1.2.3
+Version 2.0.3 - 1/4/2024
+There have been some major changes in version 2 compared to 1 - make sure you read above before updating
 
-In the future, the concept of 'mods' will likely be moved into Trial like 'scenario' has been in 2.0
-
-I need to figure out how to read the modlist from an existing save file first before this can occur though
+The lua scenario in this package is aggressive and heavy-handed in its approach to data collection - it slows down the
+trial time significantly if all data is collected for a long period of time. Would love to work with Factorio devs on
+getting a better / more efficient way to collect this data (AND better way to place a blueprint in lua would be nice...)

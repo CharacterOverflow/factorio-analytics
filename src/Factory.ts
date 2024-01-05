@@ -46,20 +46,23 @@ import {DatasetAnalysis} from "./DatasetAnalysis";
 
 export interface IFactoryStartParams {
     // REQUIRED needed to run executable
-    installDir: string;
+    installDir?: string;
 
-    // REQUIRED needed to manage mods/saves/scenarios
-    // LIKELY the same as installPath if game was installed automatically
+    // OPTIONAL defaults to same dir as 'installDir'
+    // ONLY used if you want to use a specific install of Factorio
     dataDir?: string;
+
+    // REQUIRED factorio username to use for API
+    username?: string;
+
+    // REQUIRED factorio token to use for API
+    token?: string;
 
     // if true, will not show console logs, but will still appear in log file
     hideConsole?: boolean
 
-    // factorio username to use for API
-    username?: string;
-
-    // factorio token to use for API
-    token?: string;
+    // Which build to use - alpha or headless. If not provided, will use headless
+    build?: string
 
 }
 
@@ -82,16 +85,23 @@ export class Factory {
     }
 
 
-    static async initialize(params: IFactoryStartParams, build?: string) {
+    static async initialize(params: IFactoryStartParams) {
 
         if (Factory.initStatus !== 'not-started')
             return
 
+        // set defaults first and throw errors if needed
+        if (params && !params?.installDir)
+            params.installDir = path.join(process.cwd(), 'factorio')
+
         if (!params?.installDir)
             throw new Error(`Cannot start factory without installPath ||| ${params.installDir}`);
 
+        if (params && !params?.build)
+            params.build = 'headless'
+
         // If no data path specified, we assume same as install path. Should be the case in alllllll situations.... except Steam
-        if (!params?.dataDir)
+        if (params && !params?.dataDir)
             params.dataDir = params.installDir;
 
         this.initStatus = 'logging';
@@ -156,7 +166,7 @@ export class Factory {
                 // re-install!
                 try {
                     this.initStatus = 'installing'
-                    await Factory.installGame(process.env.FACTORY_VERSION, build);
+                    await Factory.installGame(process.env.FACTORIO_VERSION, params.build);
                 } catch (e) {
                     Logging.log('error', `Error installing Factorio - ${e.message}`);
                     // delete the cached download file, as it may have issues. Next loop will retry!

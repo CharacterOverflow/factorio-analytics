@@ -50,7 +50,7 @@ export interface ITrial {
 }
 
 // one of the main classes needed to do much of anything
-@Entity('trials')
+@Entity('trial')
 export class Trial implements ITrial {
 
     @PrimaryColumn()

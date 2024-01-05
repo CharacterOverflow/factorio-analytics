@@ -9,9 +9,8 @@ import {
     GameFlowElectricRecord,
     GameFlowItemRecord,
     GameFlowPollutionRecord,
-    GameFlowSystemRecord, IGameFlowCircuitResults, IGameFlowItemResults, IGameFlowRecordCounts, IGameFlowResults
+    GameFlowSystemRecord, IGameFlowRecordCounts, IGameFlowResults
 } from "./Dataset";
-import {DatasetAnalysis} from "./DatasetAnalysis";
 import {FactorioApi} from "./FactorioApi";
 
 export class FactoryDatabase {
@@ -44,11 +43,11 @@ export class FactoryDatabase {
     // if env values are set, they override the file-loaded values
     // need save functionality as well
     static async loadUserFile() {
-
+        throw new Error('Not yet implemented')
     }
 
     static async saveUserFile() {
-        FactorioApi
+        throw new Error('Not yet implemented')
     }
 
     static async deleteTrialData(trialId: string) {

@@ -1,6 +1,6 @@
 {
   "name": "factorio-analytics",
-  "version": "2.0",
+  "version": "2.0.3",
   "description": "A package for benchmarking Factorio blueprints, providing detailed game data down to the tick",
   "repository": {
     "type": "github",
@@ -31,7 +31,8 @@
     "luxon": "^3.3.0",
     "minimist": "^1.2.8",
     "typeorm": "^0.3.17",
-    "winston": "^3.8.2"
+    "winston": "^3.8.2",
+    "zlib": "^1.0.5"
   },
   "devDependencies": {
     "@ava/typescript": "^4.1.0",
@@ -54,6 +55,8 @@
     "blueprint",
     "nodejs",
     "typescript",
+    "testing",
+    "game",
     "analytics",
     "api"
   ],

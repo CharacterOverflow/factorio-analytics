@@ -1,4 +1,8 @@
 /*
+* This file will run the local_editor site locally, and set up the needed API endpoints to use it
+*
+* */
+/*
 * Blueprint-Scripts CLI - runTrial.(ts/js)
 *
 * PURPOSE - to run a Blueprint string that is currently saved in a file, and have the data saved into a local folder
@@ -38,17 +42,13 @@ const bpFile = path.join(process.cwd(), 'factory/examples/45spm_base.bp');
 
 async function main() {
 
-    const bpString = await fs.readFile(bpFile, 'utf8');
-
     await Factory.initialize({
         installDir: '/home/overflow/Apps/factorio_auto_v5',
         hideConsole: false,
-        build: 'alpha'
         // user info is provided auto-magically from oldenv.txt
     })
-    await FactoryDatabase.initialize();
-    let obj = await Source.blueprintStringToObject(bpString)
-    console.log(obj);
+    await FactoryDatabase.initialize()
+    await FactoryBackend.startServer();
 }
 
 main().then(async (t) => {

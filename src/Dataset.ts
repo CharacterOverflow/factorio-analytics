@@ -199,7 +199,7 @@ export class GameFlowElectricRecord implements IGameFlowElectricTick {
 
 }
 
-@Entity('dataset_circuits')
+@Entity('dataset_circuit')
 export class GameFlowCircuitRecord implements IGameFlowCircuitTick {
 
     @PrimaryColumn()
