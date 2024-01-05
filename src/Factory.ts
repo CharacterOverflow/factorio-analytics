@@ -106,6 +106,7 @@ export class Factory {
 
         this.initStatus = 'logging';
         await Factory.setupLogger(params.hideConsole);
+        Logging.log('info', `Beginning factory startup`);
 
         // Phase 2 - link to the data path folder
         // ensure core folders are made - if any of these fail, the rest fails
@@ -181,6 +182,8 @@ export class Factory {
 
 
     public static async prepareTrial(t: Trial) {
+        Logging.log('info', `Preparing trial ${t.id}`);
+
         if (!t?.id)
             throw new Error('Cannot prepare trial! ID is missing, or trial is null');
 
@@ -269,6 +272,8 @@ export class Factory {
     }
 
     public static async compileTrial(t: Trial) {
+        Logging.log('info', `Compiling trial ${t.id}`);
+
         if (!t?.id)
             throw new Error('Cannot prepare trial! ID is missing, or trial is null');
 
@@ -328,6 +333,8 @@ export class Factory {
     }
 
     public static async runTrial(t: Trial) {
+        Logging.log('info', `Running trial ${t.id}`);
+
         // should just run the trial, nothing more. dont do data analysis here
         if (!t?.id)
             throw new Error('Cannot run trial! ID is missing, or trial is null');
@@ -420,6 +427,8 @@ export class Factory {
         pollution?: IGameFlowPollutionResults
         system?: IGameFlowSystemResults
     }> {
+        Logging.log('info', `Analyzing trial ${t.id}`);
+
         if (!t?.id)
             throw new Error('Cannot analyze trial! ID is missing, or trial is null');
 
@@ -430,6 +439,7 @@ export class Factory {
             await Factory.runTrial(t)
 
         t.setStage('analyzing');
+        Logging.log('info', `Trial ${t.id} analyzed - parsing data files next`)
 
         try {
             let rObj: {

@@ -13,6 +13,7 @@ import {IGameFlow, IGameFlowRecordCounts, IGameFlowResults} from "./Dataset";
 import {DatasetQuery, IDatasetQueryOptions} from "./DatasetAnalysis";
 import {factory} from "ts-jest/dist/transformers/hoist-jest";
 import {FactorioApi} from "./FactorioApi";
+import {Logging} from "./Logging";
 
 export class FactoryBackend {
 
@@ -46,6 +47,7 @@ export class FactoryBackend {
     //static sockets: Map<string, Socket> = new Map<string, Socket>()
 
     static async startServer(port: number = 3001) {
+        Logging.log('info', 'Starting server on port ' + port)
         FactoryBackend.app = express()
         FactoryBackend.app.use(express.json())
         FactoryBackend.app.use(express.urlencoded({extended: true}))
@@ -63,6 +65,7 @@ export class FactoryBackend {
                     version: Factory.factoryVersion
                 })
             } catch (e) {
+                Logging.log('error', e)
                 res.status(501).send(e)
             }
         })
@@ -77,6 +80,7 @@ export class FactoryBackend {
                     factoryScenariosPath: Factory.scenariosPath
                 })
             } catch (e) {
+                Logging.log('error', e)
                 res.status(501).send(e)
             }
         })
@@ -86,6 +90,7 @@ export class FactoryBackend {
                     modCache: [...Factory.modCache]
                 })
             } catch (e) {
+                Logging.log('error', e)
                 res.status(501).send(e)
             }
         })
@@ -95,6 +100,7 @@ export class FactoryBackend {
             let file = req.files[fileNames[0]];
             file.mv(path.join(Factory.factoryDataPath, 'saves-upload', file.name), function (err) {
                 if (err) {
+                    Logging.log('error', err)
                     res.status(501).send(err)
                 } else {
                     res.send('ok')
@@ -108,9 +114,11 @@ export class FactoryBackend {
                         return path.join(Factory.factoryDataPath, 'saves-upload', f)
                     }))
                 }).catch((e) => {
+                    Logging.log('error', e)
                     res.status(501).send(e)
                 })
             } catch (e) {
+                Logging.log('error', e)
                 res.status(501).send(e)
             }
         })
@@ -121,9 +129,11 @@ export class FactoryBackend {
                 FactoryDatabase.saveTrial(t).then(() => {
                     res.send(t)
                 }).catch((err: any) => {
+                    Logging.log('error', err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error', e)
                 res.status(501).send(e)
             }
         })
@@ -134,9 +144,11 @@ export class FactoryBackend {
                 FactoryDatabase.saveSource(s).then(() => {
                     res.send(s)
                 }).catch((err: any) => {
+                    Logging.log('error', err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error', e)
                 res.status(501).send(e)
             }
         })
@@ -147,9 +159,11 @@ export class FactoryBackend {
                 FactoryDatabase.saveModList(m).then(() => {
                     res.send(m)
                 }).catch((err: any) => {
+                    Logging.log('error', err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error', e)
                 res.status(501).send(e)
             }
         })
@@ -159,9 +173,11 @@ export class FactoryBackend {
                 FactoryDatabase.saveTrial(trial, false).then((rettrial) => {
                     res.send(rettrial)
                 }).catch((err: any) => {
+                    Logging.log('error', err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error', e)
                 res.status(501).send(e)
             }
         })
@@ -176,6 +192,7 @@ export class FactoryBackend {
                         }).then((ret) => {
                             res.send(ret)
                         }).catch((err: any) => {
+                            Logging.log('error', err)
                             res.status(501).send(err)
                         })
                     } else {
@@ -184,28 +201,29 @@ export class FactoryBackend {
                         FactoryDatabase.saveSource(src).then((ret) => {
                             res.send(ret)
                         }).catch((err: any) => {
+                            Logging.log('error', err)
                             res.status(501).send(err)
                         })
                     }
                 } catch (e) {
+                    Logging.log('error', e)
                     res.status(501).send(e)
                 }
             }
         )
         FactoryBackend.app.post('/api/updateModList', (req, res) => {
+
             try {
-                try {
-                    let modList: ModList = new ModList(req.body)
-                    // req.body.mods might not be a list of strings...
-                    FactoryDatabase.saveModList(modList).then(() => {
-                        res.send(modList)
-                    }).catch((err: any) => {
-                        res.status(501).send(err)
-                    })
-                } catch (e) {
-                    res.status(501).send(e)
-                }
+                let modList: ModList = new ModList(req.body)
+                // req.body.mods might not be a list of strings...
+                FactoryDatabase.saveModList(modList).then(() => {
+                    res.send(modList)
+                }).catch((err: any) => {
+                    Logging.log('error', err)
+                    res.status(501).send(err)
+                })
             } catch (e) {
+                Logging.log('error', e)
                 res.status(501).send(e)
             }
         })
@@ -215,9 +233,11 @@ export class FactoryBackend {
                 FactoryDatabase.listTrials(count).then((trials: Trial[]) => {
                     res.send(trials)
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })
@@ -234,9 +254,11 @@ export class FactoryBackend {
 
                     res.send(src)
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })
@@ -248,9 +270,11 @@ export class FactoryBackend {
                 }).then((modLists: ModList[]) => {
                     res.send(modLists)
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })
@@ -260,9 +284,11 @@ export class FactoryBackend {
                 FactoryDatabase.loadTrial(id).then((trial: Trial) => {
                     res.send(trial)
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })
@@ -272,9 +298,11 @@ export class FactoryBackend {
                 FactoryDatabase.loadSource(id).then((source: Source) => {
                     res.send(source)
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
 
@@ -285,9 +313,11 @@ export class FactoryBackend {
                 FactoryDatabase.loadModList(id).then((modlist: ModList) => {
                     res.send(modlist)
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.send(e)
             }
         })
@@ -300,9 +330,11 @@ export class FactoryBackend {
                 FactoryDatabase.loadDatasetMetadata(id).then((results: IGameFlowRecordCounts) => {
                     res.send(results)
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(500).send(e)
             }
 
@@ -318,9 +350,11 @@ export class FactoryBackend {
                 FactoryDatabase.loadDatasetRecords(id, category).then((results: IGameFlowResults) => {
                     res.send(results)
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(500).send(e)
             }
         })
@@ -344,6 +378,7 @@ export class FactoryBackend {
                 })
                 res.send(r)
             } catch (e) {
+                Logging.log('error',e)
                 res.status(500).send(e)
             }
         })
@@ -357,9 +392,11 @@ export class FactoryBackend {
                 FactorioApi.getModInfo(req.query.name).then((modInfo) => {
                     res.send(modInfo)
                 }).catch((e) => {
+                    Logging.log('error',e)
                     res.status(501).send(e)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(500).send(e)
             }
         })
@@ -379,10 +416,12 @@ export class FactoryBackend {
 
                     res.send('OK')
                 }).catch((e) => {
+                    Logging.log('error',e)
                     res.status(501).send(e)
                 })
 
             } catch (e) {
+                Logging.log('error',e)
                 res.status(500).send(e)
             }
         })
@@ -398,9 +437,11 @@ export class FactoryBackend {
                 FactoryDatabase.deleteTrialData(id).then((data) => {
                     res.send(data)
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })
@@ -409,9 +450,11 @@ export class FactoryBackend {
                 FactoryDatabase.deleteTrialData(req.params.id).then((data) => {
                     res.send('OK')
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })
@@ -420,9 +463,11 @@ export class FactoryBackend {
                 FactoryDatabase.deleteTrial(req.params.id).then((data) => {
                     res.send('OK')
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })
@@ -431,9 +476,11 @@ export class FactoryBackend {
                 FactoryDatabase.deleteSource(req.params.id).then((data) => {
                     res.send('OK')
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(500).send(e)
             }
         })
@@ -442,9 +489,11 @@ export class FactoryBackend {
                 FactoryDatabase.deleteModList(req.params.id).then((data) => {
                     res.send('OK')
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(500).send(e)
             }
         })
@@ -458,9 +507,11 @@ export class FactoryBackend {
                 }).then((data) => {
                     res.send('OK')
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })
@@ -476,9 +527,11 @@ export class FactoryBackend {
                 }).then(() => {
                     res.send('OK')
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })
@@ -492,6 +545,7 @@ export class FactoryBackend {
                 else
                     res.send('No database initialized')
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })
@@ -508,6 +562,7 @@ export class FactoryBackend {
                             results: undefined
                         }))
                     }).catch((e) => {
+                        Logging.log('error',e)
                         res.status(501).send(e)
                     })
                 } else if (execution == 'compile') {
@@ -519,6 +574,7 @@ export class FactoryBackend {
                             results: undefined
                         }))
                     }).catch((e) => {
+                        Logging.log('error',e)
                         res.status(501).send(e)
                     })
                 } else if (execution == 'run') {
@@ -531,6 +587,7 @@ export class FactoryBackend {
                             results: undefined
                         }))
                     }).catch((e) => {
+                        Logging.log('error',e)
                         res.status(501).send(e)
                     })
                 } else if (execution == 'analyze') {
@@ -548,11 +605,16 @@ export class FactoryBackend {
                             trial: trial
                         }))
                     }).catch((e) => {
+                        Logging.log('error',e)
                         res.status(501).send(e)
                     })
-                } else
+                } else {
                     res.status(501).send('Invalid execution type')
+                    Logging.log('error','Invalid execution type')
+                }
+
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })
@@ -599,9 +661,12 @@ export class FactoryBackend {
                     let ret = q.groupByLabel()
                     res.send(ret)
                     return
-                } else
+                } else {
+                    Logging.log('error','Invalid function')
                     res.status(501).send('Invalid function')
+                }
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })
@@ -613,9 +678,11 @@ export class FactoryBackend {
                 }).then((dat) => {
                     res.send(dat)
                 }).catch((err: any) => {
+                    Logging.log('error',err)
                     res.status(501).send(err)
                 })
             } catch (e) {
+                Logging.log('error',e)
                 res.status(501).send(e)
             }
         })

@@ -12,12 +12,15 @@ import {
     GameFlowSystemRecord, IGameFlowRecordCounts, IGameFlowResults
 } from "./Dataset";
 import {FactorioApi} from "./FactorioApi";
+import {Logging} from "./Logging";
 
 export class FactoryDatabase {
 
     static FactoryDB: DataSource;
 
     static async initialize() {
+        Logging.log('info', 'Initializing Factory Database')
+
         if (!Factory.factoryDataPath)
             throw new Error('Initialize Factory first - need paths set up')
 
@@ -38,19 +41,8 @@ export class FactoryDatabase {
         await FactoryDatabase.FactoryDB.synchronize(false)
     }
 
-    // loads file at 'rootDir/factory-storage/user.json'
-    // uses the user and token value here
-    // if env values are set, they override the file-loaded values
-    // need save functionality as well
-    static async loadUserFile() {
-        throw new Error('Not yet implemented')
-    }
-
-    static async saveUserFile() {
-        throw new Error('Not yet implemented')
-    }
-
     static async deleteTrialData(trialId: string) {
+        Logging.log('info', `Deleting trial data for trial ${trialId}`)
         await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).delete({
             trialId
         })
@@ -79,6 +71,7 @@ export class FactoryDatabase {
     }
 
     static async loadDatasetMetadata(trialId: string): Promise<IGameFlowRecordCounts> {
+        Logging.log('info', `Loading dataset metadata for trial ${trialId}`)
         // need to load the trial data, then generate 'generic' summary to return
         if (!trialId)
             throw new Error('Invalid trialId')
@@ -101,6 +94,7 @@ export class FactoryDatabase {
     }
 
     static async loadDatasetRecords(trialId: string, category: string): Promise<IGameFlowResults> {
+        Logging.log('info', `Loading dataset records for trial ${trialId} in category ${category}`)
         switch (category) {
             case 'item':
                 return {
@@ -186,6 +180,7 @@ export class FactoryDatabase {
     }
 
     static async deleteTrial(id: string) {
+        Logging.log('info', `Deleting trial ${id}`)
         await FactoryDatabase.deleteTrialData(id)
         await FactoryDatabase.FactoryDB.getRepository(Trial).delete({
             id
@@ -193,18 +188,21 @@ export class FactoryDatabase {
     }
 
     static async deleteSource(id: string) {
+        Logging.log('info', `Deleting source ${id}`)
         await FactoryDatabase.FactoryDB.getRepository(Source).delete({
             id
         })
     }
 
     static async deleteModList(id: string) {
+        Logging.log('info', `Deleting mod list ${id}`)
         await FactoryDatabase.FactoryDB.getRepository(ModList).delete({
             id
         })
     }
 
     static async saveTrial(trial: Trial, saveExtra: boolean = true) {
+        Logging.log('info', `Saving trial ${trial.id}`)
         if (saveExtra && trial.source) {
             await FactoryDatabase.saveSource(trial.source, true)
         }
@@ -212,6 +210,7 @@ export class FactoryDatabase {
     }
 
     static async saveSource(source: Source, saveExtra: boolean = true) {
+        Logging.log('info', `Saving source ${source.id}`)
         if (saveExtra && source.modList) {
             await FactoryDatabase.saveModList(source.modList)
         }
@@ -219,36 +218,42 @@ export class FactoryDatabase {
     }
 
     static async saveModList(modList: ModList) {
+        Logging.log('info', `Saving mod list ${modList.id}`)
         return await FactoryDatabase.FactoryDB.getRepository(ModList).save(modList)
     }
 
 
     static async insertItemRecords(records: GameFlowItemRecord[]) {
         // chunk size of 1000 to start
+        Logging.log('info', `Inserting ${records.length} item records for trial ${records[0].trialId}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertElectricRecords(records: GameFlowElectricRecord[]) {
+        Logging.log('info', `Inserting ${records.length} electric records for trial ${records[0].trialId}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowElectricRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertCircuitRecords(records: GameFlowCircuitRecord[]) {
+        Logging.log('info', `Inserting ${records.length} circuit records for trial ${records[0].trialId}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertPollutionRecords(records: GameFlowPollutionRecord[]) {
+        Logging.log('info', `Inserting ${records.length} pollution records for trial ${records[0].trialId}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertSystemRecords(records: GameFlowSystemRecord[]) {
+        Logging.log('info', `Inserting ${records.length} system records for trial ${records[0].trialId}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).insert(records.slice(i, i + 1000))
         }

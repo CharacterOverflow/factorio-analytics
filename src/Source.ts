@@ -19,6 +19,7 @@ import fs from "fs-extra";
 import crypto from "crypto";
 import {Column, Entity, ManyToOne, PrimaryColumn} from "typeorm";
 import * as zlib from "zlib";
+import {Logging} from "./Logging";
 
 /*
 * Having either blueprint or saveGamePath is  required. one or the other! If both are passed in, an error will be thrown
@@ -148,6 +149,7 @@ export class Source implements ISource {
                     .toString('utf8'),
             );
         } catch (e) {
+            Logging.log('error',  e);
             throw e;
         }
         return data

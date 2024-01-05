@@ -103,6 +103,7 @@ export class DatasetQuery<TickType extends IGameFlow> implements IDatasetQueryOp
     }
 
     summaryByLabel(dataset: TickType[] = this.dataset): Dictionary<IDatasetStats> {
+
         // this will also require the 'valueField' to be set, so we know which field to target
         // this will return a dictionary of labels, with the valueField as the value field used
         // instead of returning the records themselves, find the min, max, avg, count, stddev
@@ -131,6 +132,8 @@ export class DatasetQuery<TickType extends IGameFlow> implements IDatasetQueryOp
     }
 
     summaryByTickChunk(dataset: TickType[] = this.dataset, tickChunkSize: number = 600, convertToSeconds: boolean = true): Dictionary<IDatasetStats> {
+        Logging.log('info', `Creating summary by tick chunk of ${tickChunkSize} ticks for dataset of ${dataset.length} records`)
+
         // this will also require the 'valueField' to be set, so we know which field to target
         // this will return a dictionary of labels, with the valueField as the value field used
         // instead of returning the records themselves, find the min, max, avg, count, stddev
@@ -232,6 +235,9 @@ export class DatasetAnalysis {
                                             startTick: number, endTick: number, labelField: string,
                                             valueField: 'cons' | 'prod' | 'count' | string, smoothing: number = 1,
                                             excludeEmpty: boolean = false): IPlotData[] {
+
+        Logging.log('info', `Creating plot data from dataset of ${dataset.length} records`)
+
         // takes a subset of the dataset, returning a new dataset with only the specified range
         // if data uses cons/prod, those fields are used, otherwise Count is looked for. Else, throws error
         if (dataset.length == 0)
@@ -272,6 +278,7 @@ export class DatasetAnalysis {
 
 
     static smoothData(data: IPlotData[], smooth: number): IPlotData[] {
+        Logging.log('info', `Smoothing ${data.length} data points with smooth factor of ${smooth}`)
         let smoothedData: IPlotData[] = [];
         if (smooth >= 1 && data.length >= smooth) {
             for (let i = 0; i < data.length - smooth + 1; i++) {
@@ -301,8 +308,11 @@ export class DatasetAnalysis {
     }
 
     public static createSummaryOfGenericDataset(result: IGameFlowResults, startTick: number = undefined, endTick: number = undefined): IGameFlowResults {
+        Logging.log('info', `Creating summary of generic dataset of ${result.data.length} records`)
+
         if (!result)
             throw new Error('Cannot create summary of generic dataset! Input is null');
+
 
         let tempDs: IGameFlow[] = result.data
         if (startTick != undefined && endTick != undefined) {
@@ -317,6 +327,7 @@ export class DatasetAnalysis {
     }
 
     public static createSummaryOfItemDataset(result: IGameFlowItemResults, startTick: number = undefined, endTick: number = undefined): IGameFlowItemResults {
+        Logging.log('info', `Creating summary of item dataset of ${result.data.length} records`)
         // passed in is the 'empty' version, with only data and trial defined
         // we now need to do all the math here
         if (!result)
@@ -352,6 +363,7 @@ export class DatasetAnalysis {
     }
 
     public static createSummaryOfCircuitDataset(result: IGameFlowCircuitResults, startTick: number = undefined, endTick: number = undefined): IGameFlowCircuitResults {
+        Logging.log('info', `Creating summary of circuit dataset of ${result.data.length} records`)
         // passed in is the 'empty' version, with only data and trial defined
         // we now need to do all the math here
         if (!result)
@@ -369,6 +381,7 @@ export class DatasetAnalysis {
     }
 
     public static createSummaryOfPollutionDataset(result: IGameFlowPollutionResults, startTick: number = undefined, endTick: number = undefined): IGameFlowPollutionResults {
+        Logging.log('info', `Creating summary of pollution dataset of ${result.data.length} records`)
         // passed in is the 'empty' version, with only data and trial defined
         // we now need to do all the math here
         if (!result)
@@ -386,6 +399,7 @@ export class DatasetAnalysis {
     }
 
     public static createSummaryOfSystemDataset(result: IGameFlowSystemResults, startTick: number = undefined, endTick: number = undefined): IGameFlowSystemResults {
+        Logging.log('info', `Creating summary of system dataset of ${result.data.length} records`)
         // passed in is the 'empty' version, with only data and trial defined
         // we now need to do all the math here
         if (!result)

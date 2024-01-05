@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import crypto, {randomUUID} from "crypto";
 import {Column, Entity, PrimaryColumn} from "typeorm";
 import {lastIndexOf} from "lodash";
+import {Logging} from "./Logging";
 
 export interface IModList {
     id?: string
@@ -47,6 +48,7 @@ export class ModList implements  IModList {
     }
 
     static async fromModListFile(filepath: string): Promise<ModList> {
+        Logging.log('info', `Loading mod list from ${filepath}`)
         let fd = await fs.readJSON(filepath)
         return new ModList({
             name: 'New Modlist',
@@ -80,6 +82,7 @@ export class ModList implements  IModList {
 
     // writes the mod-list.json file format - filepath should be absolute, and have 'mod-list.json' (or whatever filename) at the end
     async writeModListFile(filepath: string) {
+        Logging.log('info', `Writing mod list to ${filepath}`)
         await fs.writeFile(filepath, JSON.stringify(this.factorioModListFormat, null, 4))
     }
 

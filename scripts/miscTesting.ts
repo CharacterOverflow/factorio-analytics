@@ -7,10 +7,13 @@ import {Trial} from "../src/Trial";
 
 async function main() {
 
+    /*
+    * #TODO
+    *   - Add more logging - use ai if anything, but log constatntlyyyy anything big that happens
+    * */
+
     await Factory.initialize({
-        installDir: '/home/overflow/Apps/factorio_auto_v5',
         hideConsole: false,
-        build: 'alpha',
         // user info is provided auto-magically from oldenv.txt
     })
     await FactoryDatabase.initialize();

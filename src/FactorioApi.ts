@@ -98,6 +98,7 @@ export class FactorioApi {
     }
 
     static async loadUserFile(path: string, dataPath?: string) {
+        Logging.log('info', `Loading user file from ${path}`);
         if (dataPath)
             FactorioApi.dataPath = dataPath;
         let fd = await fs.readJson(path, 'utf8')
@@ -106,6 +107,7 @@ export class FactorioApi {
     }
 
     static async saveUserFile(path: string) {
+        Logging.log('info', `Saving user file to ${path}`);
         // write to path the user file
         await fs.writeFile(path, JSON.stringify({
             username: FactorioApi.username,
@@ -123,6 +125,7 @@ export class FactorioApi {
     static latestVersion: IFactorioApiVersionMap
 
     static clear() {
+        Logging.log('info', 'Clearing Factorio API data');
         FactorioApi.versionMap = new Map<string, Array<IFactorioApiVersionMigrateRecord>>();
         FactorioApi.latestVersion = undefined;
         FactorioApi.authError = undefined;
@@ -130,6 +133,7 @@ export class FactorioApi {
     }
 
     static async queryApi(url: string, params: any = {}) {
+        Logging.log('info', `Querying Factorio API at ${url}`)
 
         if (FactorioApi.isAuthenticated || (this.username && this.token))
             params = {
@@ -193,6 +197,7 @@ export class FactorioApi {
         *  sort_order asc or desc,
         *  namelist array of strings - ONLY returns mods with given names,
         * */
+
         let params = {
             page: page == null ? undefined : page,
             page_size: pageSize == null ? undefined : pageSize,
@@ -220,7 +225,7 @@ export class FactorioApi {
     * Downloads a given mod, returning the full path to the downloaded file. just returns path if already downloaded
     * */
     static async downloadMod(name: string, version: string = 'latest'): Promise<string> {
-
+        Logging.log('info', `Beginning download process for mod ${name}_${version}`)
         /*First, check our filesystem to see if we have that file*/
         // if version is 'latest', we need to query the API to find the latest version, THEN we can state filepath
         let dlPath: string;
@@ -258,6 +263,8 @@ export class FactorioApi {
 
     // Function used for downloading a given file once we have a URL generated. Piping is best for larger downloads like we have.
     private static async downloadFile(url: string, outputLocationPath: string): Promise<string> {
+
+        Logging.log('info', `Downloading ${url} to ${outputLocationPath}`);
 
         // Alright axios - you do NOT like to follow instructions on downloading a stream, huh?
         // keeps on stopping after 16.9kb written for any alpha version, but headless works perfectly
