@@ -10,7 +10,9 @@ This library utilizes the factorio executable locally, so a copy of Factorio is 
 
 - [Setup](#getting-started)
 - [Install](#install-via-npm)
-- [Process Explanation](#process-explanation)
+- [Code Examples](#code-examples)
+- [Analyze and Use Data](#analyze-and-use-data)
+- [Database](#using-a-database-ide)
 
 ## Getting Started
 

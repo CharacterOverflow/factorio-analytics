@@ -15,7 +15,6 @@
 * */
 
 import {IModList, ModList} from "./ModList";
-import fs from "fs-extra";
 import crypto from "crypto";
 import {Column, Entity, ManyToOne, PrimaryColumn} from "typeorm";
 import * as zlib from "zlib";

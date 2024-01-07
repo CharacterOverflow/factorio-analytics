@@ -4,9 +4,7 @@
 * - Delete files in the installDir first
 * */
 
-import {Factory} from "../../src/Factory";
 import path from "path";
-import fs from "fs-extra";
 import {FactorioApi} from "../../src/FactorioApi";
 
 require('dotenv').config()

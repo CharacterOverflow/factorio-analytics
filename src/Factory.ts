@@ -17,17 +17,15 @@ import {
     GameFlowItemRecord,
     GameFlowPollutionRecord,
     GameFlowSystemRecord,
-    IGameFlow,
     IGameFlowCircuitResults,
     IGameFlowCircuitTick,
     IGameFlowElectricResults,
     IGameFlowItemResults,
     IGameFlowItemTick,
     IGameFlowPollutionResults,
-    IGameFlowPollutionTick, IGameFlowResults,
+    IGameFlowPollutionTick,
     IGameFlowSystemResults,
     IGameFlowSystemTick,
-    IPlotData,
 } from "./Dataset";
 import _ from "lodash";
 import {Source} from "./Source";
