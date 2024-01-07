@@ -157,3 +157,23 @@ export class Source implements ISource {
 
 
 }
+
+export interface BlueprintStringDetails {
+    icons: any[];
+    entities: any[];
+    item: string;
+    version: number;
+}
+
+/*
+* Class intended for getting more details about a blueprint. Caches the parsed data and has computed / functions available
+* to access data about the blueprint
+* */
+export class SourceBlueprintDetails extends Source {
+    constructor(params: ISource = null) {
+        super(params);
+
+    }
+
+    data: any = null;
+}

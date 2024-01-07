@@ -22,6 +22,9 @@ async function main() {
     const bpFile = path.join(process.cwd(), 'factory/examples/45spm_base.bp');
     const bpString = await fs.readFile(bpFile, 'utf8');
 
+    let obj = await Source.blueprintStringToObject(bpString)
+    console.log(obj)
+
     // Create a Source for your blueprint string
     let mySource = new Source({
         name: '45spm_base',

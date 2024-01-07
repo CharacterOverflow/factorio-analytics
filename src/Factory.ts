@@ -64,6 +64,9 @@ export interface IFactoryStartParams {
     // Which build to use - alpha or headless. If not provided, will use headless
     build?: string
 
+    // true will download and update install if needed. false will not update if an install exists already
+    updateInstall?: boolean
+
 }
 
 /*
@@ -93,6 +96,9 @@ export class Factory {
         // set defaults first and throw errors if needed
         if (params && !params?.installDir)
             params.installDir = path.join(process.cwd(), 'factorio')
+
+        if (params && !params.updateInstall)
+            params.updateInstall = true
 
         if (!params?.installDir)
             throw new Error(`Cannot start factory without installPath ||| ${params.installDir}`);
@@ -151,7 +157,7 @@ export class Factory {
         try {
             this.initStatus = 'validating-install'
             // Validate our executable exists and info file exists
-            await Factory.verifyInstall();
+            await Factory.verifyInstall(params.updateInstall);
         } catch (e) {
             // if this gets hit, means that something had an error in the 'link' process above
             // In this case, this catch allows code to continue past in this case, where future code handles the re-install if possible
@@ -1017,11 +1023,11 @@ export class Factory {
     static modCache: Set<string> = new Set<string>();
 
     // in the future, add a parameter to this function to specify a version to verify we have, else redownload
-    static async verifyInstall() {
+    static async verifyInstall(forceLatestVersion: boolean = false) {
         // Phase 3 - link to the install path folder
         let p: string;
 
-
+        Logging.log('info', {message: `Verifying factory install path at ${this.factoryInstallPath}`});
         // Validate our executable exists, regardless of platform.
         if (os.platform() === 'win32') {
             p = path.join(this.factoryInstallPath, 'bin', 'x64', 'factorio.exe');
@@ -1031,6 +1037,7 @@ export class Factory {
         }
 
         if (!(await fs.pathExists(p))) {
+            Logging.log('error', {message: `Cannot link factory install path - no executable found at ${p}`});
             throw new Error(`Cannot link factory install path - no executable found at ${p}`);
         }
 
@@ -1038,11 +1045,11 @@ export class Factory {
         const infoJson = await fs.readJson(path.join(this.factoryInstallPath, 'data', 'base', 'info.json'));
         Factory.factoryVersion = infoJson.version;
         Factory.factoryExecutable = true;
-
-        // // We are also going to copy the scenario source from the package install - will ensure scenario-source exists
-        // if (!fs.existsSync(path.join(Factory.factoryDataPath, 'scenarios', 'scenario-source')))
-        //     await Factory.copyScenarioSource();
-        // NOT NEEDED ANYMORE - scenario names are dynamic copied each time
+        Logging.log('info', {message: `Successfully verified factory install path at ${this.factoryInstallPath} - version ${Factory.factoryVersion}`});
+        if (forceLatestVersion && (FactorioApi.latestVersion.stable.headless !== Factory.factoryVersion)) {
+            Logging.log('info', {message: `Version mismatch - latest version of Factorio is ${FactorioApi.latestVersion.stable.headless}, but we have ${Factory.factoryVersion}.`});
+            throw new Error(`Version mismatch - latest version of Factorio is ${FactorioApi.latestVersion.stable.headless}, but we have ${Factory.factoryVersion}.`);
+        }
 
         return infoJson
 

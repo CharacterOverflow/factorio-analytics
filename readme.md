@@ -28,6 +28,7 @@ to test for compatibility. Use at your own risk!
 - Linux (untested on Windows, but should work)
 - NodeJS 16+
 - CURL installed (if the command 'curl' can be found, you're good)
+- TAR installed (if the command 'tar' can be found, you're good)
 - A Factorio Blueprint (or savegame) that you want to test / analyze
     - Remember to add Infinity Chests to your blueprint to spawn source items! If your blueprint does not include these
       to provide items, nothing will be done in-game

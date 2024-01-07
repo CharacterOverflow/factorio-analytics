@@ -31,6 +31,8 @@ export class Logging {
 
     // populate 'message' on obj first!!! message field is what gets used
     static log(level: string, obj: any) {
+        if (!this._innerLogger)
+            return;
         this._innerLogger.log(level, obj);
     }
 

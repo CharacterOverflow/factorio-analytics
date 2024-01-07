@@ -16,8 +16,8 @@ const execAsync = promisify(exec);
 
 
 export interface IFactorioApiParams {
-    username: string;
-    token: string;       // no password! Dont be lazy - log in and get the damn token already. Mods wont work without token, and only headless can be downloaded without token
+    username?: string;
+    token?: string;       // no password! Dont be lazy - log in and get the damn token already. Mods wont work without token, and only headless can be downloaded without token
     dataPath: string;    // path to factorio data folder
 }
 
@@ -101,9 +101,13 @@ export class FactorioApi {
         Logging.log('info', `Loading user file from ${path}`);
         if (dataPath)
             FactorioApi.dataPath = dataPath;
-        let fd = await fs.readJson(path, 'utf8')
-        FactorioApi.username = fd.username;
-        FactorioApi.token = fd.token;
+        try {
+            let fd = await fs.readJson(path, 'utf8')
+            FactorioApi.username = fd.username;
+            FactorioApi.token = fd.token;
+        } catch (e) {
+            Logging.log('error', `Could not load user file from ${path} - ${e.message}`);
+        }
     }
 
     static async saveUserFile(path: string) {
@@ -167,7 +171,9 @@ export class FactorioApi {
         FactorioApi.token = params.token;
         FactorioApi.dataPath = params.dataPath;
 
-        if (!FactorioApi.username && fs.existsSync(path.join(FactorioApi.dataPath, 'factory-storage', 'user.json')))
+        await fs.ensureDir(path.join(FactorioApi.dataPath, 'factory-storage'));
+
+        if (!FactorioApi.username)
             await FactorioApi.loadUserFile(path.join(FactorioApi.dataPath, 'factory-storage', 'user.json'));
 
         Logging.log('info', 'Initializing Factorio API - Grabbing version information')
