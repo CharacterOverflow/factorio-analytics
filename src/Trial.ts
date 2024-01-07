@@ -1,115 +1,275 @@
-
 import {randomUUID} from "crypto";
-import {Logging} from "./Logging";
-import {Dataset} from "./Dataset";
-import {Blueprint} from "./Blueprint";
+import {ISource, Source} from "./Source";
+import {Column, Entity, ManyToOne, PrimaryColumn} from "typeorm";
 
-export interface ITrialParams {
+export interface ITrialDataFiles {
+    items?: string;
+    electric?: string;
+    circuits?: string;
+    pollution?: string;
+}
 
-    // Either a reference to the blueprint object, or a blueprint string itself to run
-    bp?: Blueprint | string;
+export type TTrialStages =
+    'new'
+    | 'preparing'
+    | 'prepared'
+    | 'compiling'
+    | 'compiled'
+    | 'running'
+    | 'ran'
+    | 'analyzing'
+    | 'analyzed'
+    | 'complete';
 
-    // how long (ticks) the trial will run for. Remember, factorio is locked at 60 ticks per second
+export interface ITrial {
+    id?: string;
+    stage?: TTrialStages;
+    source?: Source | ISource;
     length?: number;
-
-    // how many ticks between item data polls (Items/fluids produced and consumed across the factory)
-    itemInterval?: number;
-
-    // how many ticks between elec data polls (The power usage and production of the factory, per network)
-    elecInterval?: number;
-
-    // how many ticks between circ data polls (Each circuit network, and the signals on it)
-    circInterval?: number;
-
-    // how many ticks between Pollution data polls (The pollution of the factory, total)
-    pollInterval?: number;
-
-    // how many ticks of performance info should be grouped together (Perf info is recorded every tick by default)
-    sysInterval?: number;
-
-    // how many logistic bots to start roboports with. If left as is, none will be placed
+    tickInterval?: number;
     initialBots?: number;
-
-    // If true, the trial does no processing after the fact. Data is left raw, no files are moved. Remember to clean up!
-    raw?: boolean;
+    recordItems?: boolean;
+    recordElectric?: boolean;
+    recordCircuits?: boolean;
+    recordPollution?: boolean;
+    recordSystem?: boolean;
+    name?: string;
+    desc?: string;
+    createdAt?: Date;
+    startedRunAt?: Date;
+    startedAt?: Date;
+    endedAt?: Date;
+    textLogs?: string[];
+    rawSystemText?: string;
+    metadata?: any;
+    itemMetadata?: any;
+    electricMetadata?: any;
+    circuitMetadata?: any;
+    pollutionMetadata?: any;
+    systemMetadata?: any;
 }
 
 // one of the main classes needed to do much of anything
-export class Trial {
+@Entity('trial')
+export class Trial implements ITrial {
 
-    // Generated UUID for this trial to be unique
+    @PrimaryColumn()
     id: string;
 
-    // Blueprint string itself to test
-    bp: Blueprint
+    @Column({
+        nullable: false,
+        type: 'nvarchar'
+    })
+    stage: TTrialStages;
 
-    // the length (in ticks) of the trial
-    length?: number = 3600
+    @ManyToOne(() => Source)
+    source: Source
 
-    // how often to poll data, by category. This is 'every X ticks, poll data'. No defaults - if there is no value, doesn't get recorded
-    itemInterval?: number
-    elecInterval?: number
-    circInterval?: number
-    pollInterval?: number
-    sysInterval?: number
+    @Column({
+        nullable: false,
+    })
+    length: number
 
-    // How many logistic bots to populate into roboports by default
-    initialBots?: number = 150;
+    @Column({
+        nullable: false,
+    })
+    tickInterval: number
 
-    // If true, the trial does no processing
-    keepRaw?: boolean = false;
+    @Column({
+        nullable: false,
+    })
+    initialBots: number
 
-    // resulting data = null otherwise
-    data: Dataset;
+    // Boolean flags for each 'data' category, used to determine which data to record
+    @Column({
+        nullable: false
+    })
+    recordItems: boolean
+
+    @Column({
+        nullable: false,
+    })
+    recordElectric: boolean
+
+    @Column({
+        nullable: false,
+    })
+    recordCircuits: boolean
+
+    @Column({
+        nullable: false,
+    })
+    recordPollution: boolean
+
+    @Column({
+        nullable: false,
+    })
+    recordSystem: boolean
+
+    @Column({
+        nullable: true,
+    })
+    name: string;
+
+    @Column({
+        nullable: true,
+    })
+    desc: string;
 
     /*
     * The following are used to track the state of the trial itself as its running, BEFORE a Dataset is created
+    *
+    * If these variables are set (along  with textResult), then the trial is considered complete and can be analyzed
+    *
+    * Once a trial has been run, it MUST be analyzed before being run again if you wish to do so
+    *
+    * Running a trial again without analyzing will clear the variables below
+    *
     * */
-    startedAt: Date = null;
-    endedAt: Date = null;
+    @Column({
+        nullable: true,
+    })
+    createdAt: Date
 
-    constructor(params: ITrialParams) {
-        if (params && params.bp) {
-            if (params.bp instanceof Blueprint)
-                this.bp = params.bp;
-            else
-                this.bp = new Blueprint(params.bp);
-        }
+    @Column({
+        nullable: true
+    })
+    startedRunAt: Date
+
+    @Column({
+        nullable: true
+    })
+    startedAt: Date
+
+    @Column({
+        nullable: true
+    })
+    endedAt: Date
+
+    // text result of trial - logs and/or system data
+    @Column({
+        nullable: true,
+        type: 'simple-array'
+    })
+    textLogs: string[]
+
+    // text result (raw) system data
+    rawSystemText: string = null;
+
+    @Column({
+        nullable: true,
+        type: 'simple-json'
+    })
+    metadata: any
+
+    @Column({
+        nullable: true,
+        type: 'simple-json'
+    })
+    itemMetadata: any = null;
+
+    @Column({
+        nullable: true,
+        type: 'simple-json'
+    })
+    electricMetadata: any = null;
+
+    @Column({
+        nullable: true,
+        type: 'simple-json'
+    })
+    circuitMetadata: any = null;
+
+    @Column({
+        nullable: true,
+        type: 'simple-json'
+    })
+    pollutionMetadata: any = null;
+
+    @Column({
+        nullable: true,
+        type: 'simple-json'
+    })
+    systemMetadata: any = null;
+
+    /*static ensureObject(trial: ITrial): Trial {
+        let a = trial as Trial
+        if (a.dataFiles)
+            return a;
+        else
+            return new Trial(a)
+    }*/
+
+    // filename results - generated from flags of which data to poll + id
+    // these files will be deleted after processing, so they may or may not exist. These are their original names however
+    get dataFiles(): ITrialDataFiles {
+        if (this.metadata)
+            return {
+                items: this.recordItems ? `${this.id}_item.jsonl` : undefined,
+                electric: this.recordElectric ? `${this.id}_elec.jsonl` : undefined,
+                circuits: this.recordCircuits ? `${this.id}_circ.jsonl` : undefined,
+                pollution: this.recordPollution ? `${this.id}_poll.jsonl` : undefined,
+            }
+        else
+            return undefined
+    }
+
+    constructor(params: ITrial = null) {
+
+        // we allow no-param construction of any class - this helps with ORMs and type casting
+        if (!params)
+            return;
 
         // In the event the constructor was called null, we will allow and still create an ID. ORMs can do this at times
-        this.id = randomUUID();
+        this.id = params?.id ?? randomUUID();
+        this.createdAt = new Date()
+
+        // If our source is a string, we need to create the source object automatically
+        if (params.source && typeof params.source == 'string') {
+            if ((params.source as string).endsWith('.zip')) {
+                // create save source
+                this.source = new Source({
+                    text: params.source,
+                    variant: 'savegame'
+                })
+            } else {
+                // create blueprint source
+                this.source = new Source({
+                    text: params.source,
+                    variant: 'blueprint'
+                })
+            }
+        } else if (params.source) {
+            // otherwise, we assume its already a source object
+            this.source = Source.ensureObject(params.source)
+        }
+
+        this.name = params.name;
+        this.desc = params.desc;
 
         // set the other data we need as well about the trial
-        if (params.length)
-            this.length = params.length;
+        this.length = params.length ?? 7200;
 
-        if (params.itemInterval)
-            this.itemInterval = params.itemInterval;
-
-        if (params.elecInterval)
-            this.elecInterval = params.elecInterval;
-
-        if (params.circInterval)
-            this.circInterval = params.circInterval;
-
-        if (params.pollInterval)
-            this.pollInterval = params.pollInterval;
-
-        if (params.sysInterval)
-            this.sysInterval = params.sysInterval;
+        this.tickInterval = params.tickInterval ?? 60;
 
         if (params.initialBots)
             this.initialBots = params.initialBots;
 
-        if (params.raw)
-            this.keepRaw = params.raw;
+        this.recordItems = (params.recordItems  != undefined) ? params.recordItems : false
 
+        this.recordElectric = false // params.recordElectric;
+
+        this.recordCircuits = (params.recordCircuits != undefined) ? params.recordCircuits : false
+
+        this.recordPollution = (params.recordPollution  != undefined) ? params.recordPollution : false
+
+        this.recordSystem = (params.recordSystem  != undefined) ? params.recordSystem : false
+
+        this.stage = "new"
     }
 
-    // Called by Factory when trial has completed, used to link TRIAL to a created DATA object
-    linkData(data: Dataset) {
-        this.data = data;
-        Logging.log('info', {message: `Linked results to ${this.id.substring(10)}...`});
+    setStage(stage: TTrialStages) {
+        this.stage = stage;
     }
 
 }
