@@ -7,8 +7,7 @@
     "url": "git+https://github.com/CharacterOverflow/factorio-analytics.git"
   },
   "scripts": {
-    "build": "tsc",
-    "test": "jest --maxWorkers=1"
+    "build": "tsc"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

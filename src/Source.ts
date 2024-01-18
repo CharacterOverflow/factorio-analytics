@@ -19,6 +19,7 @@ import crypto from "crypto";
 import {Column, Entity, ManyToOne, PrimaryColumn} from "typeorm";
 import * as zlib from "zlib";
 import {Logging} from "./Logging";
+import _ from "lodash";
 
 /*
 * Having either blueprint or saveGamePath is  required. one or the other! If both are passed in, an error will be thrown
@@ -148,7 +149,7 @@ export class Source implements ISource {
                     .toString('utf8'),
             );
         } catch (e) {
-            Logging.log('error',  e);
+            Logging.log('error', e);
             throw e;
         }
         return data
@@ -157,11 +158,18 @@ export class Source implements ISource {
 
 }
 
-export interface BlueprintStringDetails {
+export interface BlueprintDetails {
     icons: any[];
     entities: any[];
+    tiles: any[];
     item: string;
     version: number;
+}
+
+export interface BlueprintBookDetails {
+    blueprints: BlueprintDetails[];
+    item: string;
+    label: string;
 }
 
 /*
@@ -171,8 +179,75 @@ export interface BlueprintStringDetails {
 export class SourceBlueprintDetails extends Source {
     constructor(params: ISource = null) {
         super(params);
+        if (this.variant != 'blueprint')
+            throw new Error('Blueprint details can only be created from a blueprint source');
 
+        let pdata = Source.blueprintStringToObject(this.text);
+        if (pdata?.blueprint)
+            this.data = pdata.blueprint;
+        else if (pdata?.blueprint_book)
+            throw new Error('Cannot use Blueprint Book - only single blueprints')
+        else
+            throw new Error('Blueprint data not found in blueprint string');
+
+        // now need to offset the coordinates so that the top left is 0,0
+        // positive goes down and right, negative goes up and left
+        this.normalizeCoordinates()
     }
 
-    data: any = null;
+    normalizeCoordinates() {
+        let minX = _.minBy(this.data.entities, (e) => e.position.x).position.x
+        let minY = _.minBy(this.data.entities, (e) => e.position.y).position.y
+        // go through all entities and tiles, subtract minX and minY from each coordinate
+        if (this.data.entities)
+            for (let e of this.data.entities) {
+                e.position.x -= minX
+                e.position.y -= minY
+            }
+        if (this.data.tiles)
+            for (let t of this.data.tiles) {
+                t.position.x -= minX
+                t.position.y -= minY
+            }
+    }
+
+    data: BlueprintDetails;
+
+    /*need separate class altogether for 'challenge' setup
+    * define...
+    * - allowedItems (label names) - if set, ONLY these items are allowed, else all are allowed
+    * - bannedItems (label names) - if set, these items are banned, else none are banned
+    * Can set up both or either, rules are combined. In some cases you may want to just ban 1 item, or only allow specific items
+    * - scoreFunction - function that will take in a COMPLETED trial and return a score
+    *   - expected to be a user-set function.
+    * - scoreExplainedFunction - function that will take in a COMPLETED trial and return a string explaining the score breakdown
+    *
+    * */
+
+    get entityCounts(): { [key: string]: number } {
+        let counts = {};
+        for (let e of this.data.entities) {
+            if (!counts[e.name])
+                counts[e.name] = 0;
+            counts[e.name] += 1;
+        }
+        return counts;
+    }
+
+    get gridRange(): { minX: number, maxX: number, minY: number, maxY: number } {
+        return {
+            minX: _.minBy(this.data.entities, (e) => e.position.x).position.x,
+            maxX: _.maxBy(this.data.entities, (e) => e.position.x).position.x,
+            minY: _.minBy(this.data.entities, (e) => e.position.y).position.y,
+            maxY: _.maxBy(this.data.entities, (e) => e.position.y).position.y
+        }
+    }
+
+    get gridSize(): { x: number, y: number } {
+        // grab min and max of x,y
+        let gr = this.gridRange;
+
+        return {x: Math.abs(gr.maxX - gr.minX) + 1, y: Math.abs(gr.maxY - gr.minY) + 1}
+    }
+
 }

@@ -13,32 +13,87 @@ import {
 } from "./Dataset";
 import {FactorioApi} from "./FactorioApi";
 import {Logging} from "./Logging";
+import {PostgresConnectionOptions} from "typeorm/driver/postgres/PostgresConnectionOptions";
+import {BetterSqlite3ConnectionOptions} from "typeorm/driver/better-sqlite3/BetterSqlite3ConnectionOptions";
 
 export class FactoryDatabase {
 
-    static FactoryDB: DataSource;
+    //static FactoryDB: DataSource;
+    static get FactoryDB(): DataSource | undefined {
+        if (FactoryDatabase.DefaultSource)
+            return FactoryDatabase.SourcesMap.get(FactoryDatabase.DefaultSource)
+        else return undefined
+    }
+    static SourcesMap: Map<string, DataSource> = new Map<string, DataSource>();
+    static DefaultSource: string;
 
-    static async initialize() {
+    static async initialize(datasources: PostgresConnectionOptions[] | BetterSqlite3ConnectionOptions[] = []) {
         Logging.log('info', 'Initializing Factory Database')
 
         if (!Factory.factoryDataPath)
             throw new Error('Initialize Factory first - need paths set up')
 
-        FactoryDatabase.FactoryDB = new DataSource({
-            type: 'better-sqlite3',
-            database: path.join(Factory.factoryDataPath, 'factory-storage', 'factory.db'),
-            statementCacheSize: 500,
-            synchronize: true,
-            entities: [Trial, Source, ModList,
-                GameFlowItemRecord,
-                GameFlowElectricRecord,
-                GameFlowCircuitRecord,
-                GameFlowPollutionRecord,
-                GameFlowSystemRecord
-            ]
-        })
-        await FactoryDatabase.FactoryDB.initialize()
-        await FactoryDatabase.FactoryDB.synchronize(false)
+        if (datasources.length > 0) {
+            // use the specified datasources instead of the default sqlite one
+            // first source added is made default
+            for (let ds of datasources) {
+                await FactoryDatabase.configureDataSource(ds.name, ds)
+            }
+        } else {
+            await FactoryDatabase.configureDataSource('default', {
+                type: 'better-sqlite3',
+                database: path.join(Factory.factoryDataPath, 'factory-storage', 'factory.db'),
+                statementCacheSize: 500,
+                synchronize: true,
+                entities: [Trial, Source, ModList,
+                    GameFlowItemRecord,
+                    GameFlowElectricRecord,
+                    GameFlowCircuitRecord,
+                    GameFlowPollutionRecord,
+                    GameFlowSystemRecord
+                ]
+            })
+        }
+    }
+
+    static setSourceAsDefault(name: string) {
+        if (!FactoryDatabase.SourcesMap.has(name))
+            throw new Error(`Datasource ${name} does not exist`)
+        FactoryDatabase.DefaultSource = name
+    }
+
+    static async configureDataSource(name: string, datasource: PostgresConnectionOptions | BetterSqlite3ConnectionOptions) {
+        Logging.log('info', `Configuring datasource ${name}`)
+        if (FactoryDatabase.SourcesMap.has(name))
+            throw new Error(`Datasource ${name} already exists`)
+
+        let ds = new DataSource(datasource)
+        await ds.initialize()
+        await ds.synchronize(false)
+        FactoryDatabase.SourcesMap.set(name, ds)
+        if (!FactoryDatabase.DefaultSource)
+            FactoryDatabase.DefaultSource = name
+        Logging.log('info', `Datasource ${name} synchronized`)
+    }
+
+    static async removeDataSource(name: string) {
+        Logging.log('info', `Removing datasource ${name}`)
+        if (!FactoryDatabase.SourcesMap.has(name))
+            throw new Error(`Datasource ${name} does not exist`)
+
+        let ds = FactoryDatabase.SourcesMap.get(name)
+        if (ds) {
+            await ds.destroy()
+            FactoryDatabase.SourcesMap.delete(name)
+            if (FactoryDatabase.DefaultSource == name) {
+                FactoryDatabase.DefaultSource = undefined
+                // set a new default
+                if (FactoryDatabase.SourcesMap.size > 0)
+                    FactoryDatabase.DefaultSource = FactoryDatabase.SourcesMap.keys().next().value
+            }
+        }
+
+        Logging.log('info', `Datasource ${name} removed`)
     }
 
     static async deleteTrialData(trialId: string) {

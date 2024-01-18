@@ -454,6 +454,8 @@ export class Factory {
                 system?: IGameFlowSystemResults
             } = {};
 
+            // we should also try to parse out any recipelister files that were created - these are used to build better item data info
+
             if (t.recordItems) {
                 Logging.log('info', {message: `Analyzing item data for trial ${t.id}`});
                 rObj.items = {

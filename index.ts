@@ -83,5 +83,5 @@ export {
     IFactorioApiModShortRecord,
     IFactorioApiModReleaseRecord,
     IFactorioApiModListResult,
-    IGameFlowRecordCounts,
+    IGameFlowRecordCounts
 }
