@@ -38,7 +38,8 @@ import {
     IGameFlowRecordCounts
 } from './src/Dataset'
 
-import {Source, ISource} from './src/Source'
+import {Source, ISource, SourceBlueprintDetails} from './src/Source'
+import { BlueprintChallenge } from './src/BlueprintChallenge';
 
 export {
     Factory,
@@ -83,5 +84,7 @@ export {
     IFactorioApiModShortRecord,
     IFactorioApiModReleaseRecord,
     IFactorioApiModListResult,
-    IGameFlowRecordCounts
+    IGameFlowRecordCounts,
+    SourceBlueprintDetails,
+    BlueprintChallenge
 }

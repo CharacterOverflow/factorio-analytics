@@ -48,13 +48,13 @@ export class Source implements ISource {
 
     @Column({
         nullable: true,
-        type: 'nvarchar'
+        type: 'varchar'
     })
     name?: string;
 
     @Column({
         nullable: true,
-        type: 'nvarchar'
+        type: 'varchar'
     })
     desc?: string;
 
@@ -69,7 +69,7 @@ export class Source implements ISource {
 
     @Column({
         nullable: false,
-        type: 'nvarchar'
+        type: 'varchar'
     })
     text: string;
 

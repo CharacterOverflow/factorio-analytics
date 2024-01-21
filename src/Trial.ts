@@ -58,7 +58,7 @@ export class Trial implements ITrial {
 
     @Column({
         nullable: false,
-        type: 'nvarchar'
+        type: 'varchar'
     })
     stage: TTrialStages;
 
