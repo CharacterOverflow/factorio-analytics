@@ -140,6 +140,10 @@ export class FactoryApiIngestServer {
             ex.use(express.json())
             ex.use(urlencoded({extended: true, limit: '100mb'}))
 
+            ex.get('/', (req, res) => {
+                res.status(200).send('OK')
+            })
+
             ex.post('/submit', (req, res) => {
                 let body = req.body as FactoryApiIngest
                 if (body?.variant === 'source') {

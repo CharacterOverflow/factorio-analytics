@@ -45,6 +45,10 @@ export class FactoryApiQueryServer {
             ex.use(express.json())
             ex.use(urlencoded({extended: true, limit: '100mb'}))
 
+            ex.get('/', (req, res) => {
+                res.status(200).send('OK')
+            })
+
             ex.get('/query/:id/:variant', (req, res) => {
                 try {
                     let id = req.params.id
