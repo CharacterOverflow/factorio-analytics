@@ -17,7 +17,7 @@ import {Factory} from "../src/Factory";
 import {ModList} from "../src/ModList";
 import {Source} from "../src/Source";
 import {FactoryDatabase} from "../src/FactoryDatabase";
-import {FactoryBackend} from "../src/FactoryBackend";
+import {FactoryLocalBackend} from "../src/FactoryLocalBackend";
 
 dotenv.config();
 
@@ -45,7 +45,7 @@ async function main() {
         // user info is provided auto-magically from oldenv.txt
     })
     await FactoryDatabase.initialize()
-    await FactoryBackend.startServer();
+    await FactoryLocalBackend.startServer();
 
     const circuitTestBp = await fs.readFile('/home/overflow/Projects/factorio-analytics/factory/examples/circuit_test.txt', 'utf8');
     //const scienceTestBp = await fs.readFile('/home/overflow/Projects/factorio-analytics/factory/examples/45spm_base.bp', 'utf-8');

@@ -14,6 +14,12 @@ import _ from "lodash";
 
 const execAsync = promisify(exec);
 
+/*
+* INTENDED TO BE USED IN ELECTRON APP OR DOCKER CONTAINER
+* NOT YET FINISHED - functionality was 'workable' on electron app, but UI is constantly ugly and not user friendly
+* wasnt happy with it - havent worked on it since
+* */
+
 
 export interface IFactorioApiParams {
     username?: string;

@@ -112,13 +112,13 @@ Other classes you can 'initialize' are...
 - FactoryDatabase
     - This will initialize the database connection, and allow you to save Sources, Trials, Modlists, and resulting
       datasets to a DB
-- FactoryBackend
+- FactoryLocalBackend
     - This will initialize an API backend, allowing you to use the Factory as a service for other applications
 
 Shown below is the default (using ENV variables)
 
 ```ts
-import {FactoryBackend} from "./FactoryBackend";
+import {FactoryLocalBackend} from "./FactoryLocalBackend";
 
 await Factory.initialize({
 
@@ -135,10 +135,6 @@ await Factory.initialize({
     // NOTE 2 - If you are using Steam install, THIS WILL BE DIFFERENT than installDir
     dataPir: process.env.FACTORIO_INSTALL,
 
-    // List of mods that you want to include. If FACTORIO_SET_MODS is true, only these mods will be used and a new mod-list.json file created
-    // If FACTORIO_DL_MODS = false, you will need to download the mods yourself and ensure some version of them exists in the /mods folder
-    mods: [/*'flib', 'Krastorio2', 'Krastorio2Assets'*/],
-
     // Whether or not we want to hide console logs to the user. Will still be written to file factory.log no matter what
     hideConsole: false
 });
@@ -148,7 +144,7 @@ await Factory.initialize({
 await FactoryDatabase.initialize();
 
 // Initialize API backend
-await FactoryBackend.startServer(3001);
+await FactoryLocalBackend.startServer(3001);
 
 ```
 

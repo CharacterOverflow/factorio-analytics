@@ -74,8 +74,9 @@ export interface IGameFlowCircuitTick extends IGameFlow {
     networkId: number;
     color: string;
     count: number;
-    signalType:  string;
+    signalType: string;
 }
+
 /*
 export interface IGameCircuitSignal {
     signal: IGameCircuitSignalType;
@@ -285,100 +286,164 @@ export class GameFlowSystemRecord implements IGameFlowSystemTick {
     @PrimaryColumn({type: 'integer'})
     tick: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     timestamp: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     wholeUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     latencyUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     gameUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     circuitNetworkUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     transportLinesUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     fluidsUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     heatManagerUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     entityUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     particleUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     mapGenerator: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     mapGeneratorBasicTilesSupportCompute: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     mapGeneratorBasicTilesSupportApply: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     mapGeneratorCorrectedTilesPrepare: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     mapGeneratorCorrectedTilesCompute: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     mapGeneratorCorrectedTilesApply: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     mapGeneratorVariations: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     mapGeneratorEntitiesPrepare: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     mapGeneratorEntitiesCompute: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     mapGeneratorEntitiesApply: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     crcComputation: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     electricNetworkUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     logisticManagerUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     constructionManagerUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     pathFinder: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     trains: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     trainPathFinder: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     commander: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     chartRefresh: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     luaGarbageIncremental: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     chartUpdate: number;
 
-    @Column()
+    @Column(
+        {type: 'float'}
+    )
     scriptUpdate: number;
 
     constructor(params: IGameFlowSystemTick, trialId: string) {

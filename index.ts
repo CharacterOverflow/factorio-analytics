@@ -14,7 +14,7 @@ import {
     IFactorioApiVersionRecord
 } from './src/FactorioApi';
 import {FactoryDatabase} from './src/FactoryDatabase'
-import {FactoryBackend} from './src/FactoryBackend'
+import {FactoryLocalBackend} from './src/FactoryLocalBackend'
 import {ModList, IModList} from './src/ModList';
 import {
     IPlotData,
@@ -47,7 +47,7 @@ export {
     Trial,
     FactorioApi,
     FactoryDatabase,
-    FactoryBackend,
+    FactoryLocalBackend,
     ModList,
     IPlotData,
     IGameFlow,

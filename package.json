@@ -1,6 +1,6 @@
 {
   "name": "factorio-analytics",
-  "version": "2.1.2",
+  "version": "2.2",
   "description": "A package for benchmarking Factorio blueprints, providing detailed game data down to the tick",
   "repository": {
     "type": "github",
@@ -21,7 +21,7 @@
     "better-sqlite3": "^8.7.0",
     "cors": "^2.8.5",
     "decompress": "^4.2.1",
-    "dotenv": "^16.0.3",
+    "dotenv": "^16.4.4",
     "express": "^4.18.2",
     "express-fileupload": "^1.4.1",
     "factorio-blueprint": "^2.6.5",
@@ -29,6 +29,7 @@
     "lodash": "^4.17.21",
     "luxon": "^3.3.0",
     "minimist": "^1.2.8",
+    "pg": "^8.11.3",
     "typeorm": "^0.3.17",
     "winston": "^3.8.2",
     "zlib": "^1.0.5"

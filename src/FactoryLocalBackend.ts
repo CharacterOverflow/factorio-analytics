@@ -15,7 +15,7 @@ import {factory} from "ts-jest/dist/transformers/hoist-jest";
 import {FactorioApi} from "./FactorioApi";
 import {Logging} from "./Logging";
 
-export class FactoryBackend {
+export class FactoryLocalBackend {
 
     static app: Express;
     //static io: Server
@@ -25,21 +25,21 @@ export class FactoryBackend {
 
     static cacheDataset(results: IGameFlowResults, trialId: string, category: string) {
         results.cachedAt = new Date()
-        FactoryBackend.cachedDatasets.set(trialId + '-' + category, results)
+        FactoryLocalBackend.cachedDatasets.set(trialId + '-' + category, results)
         // we can only have up to 10 datasets cached at once - for the sake of ram usage
         // look through the cache, and remove the oldest one if we have more than 10
         // dont use foreach
-        if (FactoryBackend.cachedDatasets.size > 10) {
+        if (FactoryLocalBackend.cachedDatasets.size > 10) {
             let oldest: Date = new Date()
             let oldestKey: string = ''
-            for (let key of FactoryBackend.cachedDatasets.keys()) {
-                let d = FactoryBackend.cachedDatasets.get(key).cachedAt
+            for (let key of FactoryLocalBackend.cachedDatasets.keys()) {
+                let d = FactoryLocalBackend.cachedDatasets.get(key).cachedAt
                 if (d < oldest) {
                     oldest = d
                     oldestKey = key
                 }
             }
-            FactoryBackend.cachedDatasets.delete(oldestKey)
+            FactoryLocalBackend.cachedDatasets.delete(oldestKey)
         }
     }
 
@@ -48,14 +48,14 @@ export class FactoryBackend {
 
     static async startServer(port: number = 3001) {
         Logging.log('info', 'Starting server on port ' + port)
-        FactoryBackend.app = express()
-        FactoryBackend.app.use(express.json())
-        FactoryBackend.app.use(express.urlencoded({extended: true}))
-        FactoryBackend.app.use(fileUpload({
+        FactoryLocalBackend.app = express()
+        FactoryLocalBackend.app.use(express.json())
+        FactoryLocalBackend.app.use(express.urlencoded({extended: true}))
+        FactoryLocalBackend.app.use(fileUpload({
             limits: {fileSize: 500 * 1024 * 1024},
         }));
-        FactoryBackend.app.use('/', express.static('public'))
-        FactoryBackend.app.get('/api/factoryStatus', (req, res) => {
+        FactoryLocalBackend.app.use('/', express.static('public'))
+        FactoryLocalBackend.app.get('/api/factoryStatus', (req, res) => {
             // what is the factory currently doing? Startup status? Running status? etc
             try {
                 res.json({
@@ -69,7 +69,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/factoryPaths', (req, res) => {
+        FactoryLocalBackend.app.get('/api/factoryPaths', (req, res) => {
             try {
                 res.json({
                     factoryInstallPath: Factory.factoryInstallPath,
@@ -84,7 +84,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/modCache', (req, res) => {
+        FactoryLocalBackend.app.get('/api/modCache', (req, res) => {
             try {
                 res.json({
                     modCache: [...Factory.modCache]
@@ -94,7 +94,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.post('/upload/savegame', (req, res) => {
+        FactoryLocalBackend.app.post('/upload/savegame', (req, res) => {
             let fileNames = Object.keys(req.files);
             // we just grab the first file and upload it - rest are ignored
             let file = req.files[fileNames[0]];
@@ -107,7 +107,7 @@ export class FactoryBackend {
                 }
             })
         })
-        FactoryBackend.app.get('/api/listSaves', (req, res) => {
+        FactoryLocalBackend.app.get('/api/listSaves', (req, res) => {
             try {
                 fs.readdir(path.join(Factory.factoryDataPath, 'saves-upload')).then((files) => {
                     res.send(files.map((f) => {
@@ -122,7 +122,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.post('/api/createTrial', (req, res) => {
+        FactoryLocalBackend.app.post('/api/createTrial', (req, res) => {
             try {
                 let params: ITrial = req.body
                 let t = new Trial(params);
@@ -137,7 +137,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.post('/api/createSource', (req, res) => {
+        FactoryLocalBackend.app.post('/api/createSource', (req, res) => {
             try {
                 let params: ISource = req.body
                 let s = new Source(params);
@@ -152,7 +152,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.post('/api/createModList', (req, res) => {
+        FactoryLocalBackend.app.post('/api/createModList', (req, res) => {
             try {
                 let params: IModList = req.body
                 let m = new ModList(params);
@@ -167,7 +167,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.post('/api/updateTrial', (req, res) => {
+        FactoryLocalBackend.app.post('/api/updateTrial', (req, res) => {
             try {
                 let trial: Trial = new Trial(req.body)
                 FactoryDatabase.saveTrial(trial, false).then((rettrial) => {
@@ -181,7 +181,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.post('/api/updateSource', (req, res) => {
+        FactoryLocalBackend.app.post('/api/updateSource', (req, res) => {
                 try {
                     let src: Source;
                     if (req.body.id) {
@@ -211,7 +211,7 @@ export class FactoryBackend {
                 }
             }
         )
-        FactoryBackend.app.post('/api/updateModList', (req, res) => {
+        FactoryLocalBackend.app.post('/api/updateModList', (req, res) => {
 
             try {
                 let modList: ModList = new ModList(req.body)
@@ -227,7 +227,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/listTrials', (req, res) => {
+        FactoryLocalBackend.app.get('/api/listTrials', (req, res) => {
             try {
                 let count: number = req.query.count ? req.query.count : 100
                 FactoryDatabase.listTrials(count).then((trials: Trial[]) => {
@@ -241,7 +241,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/listSources', (req, res) => {
+        FactoryLocalBackend.app.get('/api/listSources', (req, res) => {
             try {
                 let count: number = req.query.count ? Number.parseInt(req.query.count) : 100
                 let showText: string = req.query.showText ? req.query.showText : false
@@ -262,7 +262,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/listModLists', (req, res) => {
+        FactoryLocalBackend.app.get('/api/listModLists', (req, res) => {
             try {
                 let count: number = req.query.count ? req.query.count : 100
                 FactoryDatabase.FactoryDB.getRepository(ModList).find({
@@ -278,7 +278,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/loadTrial', (req, res) => {
+        FactoryLocalBackend.app.get('/api/loadTrial', (req, res) => {
             try {
                 let id: string = req.query.id
                 FactoryDatabase.loadTrial(id).then((trial: Trial) => {
@@ -292,7 +292,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/loadSource', (req, res) => {
+        FactoryLocalBackend.app.get('/api/loadSource', (req, res) => {
             try {
                 let id: string = req.query.id
                 FactoryDatabase.loadSource(id).then((source: Source) => {
@@ -307,7 +307,7 @@ export class FactoryBackend {
             }
 
         })
-        FactoryBackend.app.get('/api/loadModList', (req, res) => {
+        FactoryLocalBackend.app.get('/api/loadModList', (req, res) => {
             try {
                 let id: string = req.query.id
                 FactoryDatabase.loadModList(id).then((modlist: ModList) => {
@@ -321,7 +321,7 @@ export class FactoryBackend {
                 res.send(e)
             }
         })
-        FactoryBackend.app.get('/api/loadDatasetMetadata', (req, res) => {
+        FactoryLocalBackend.app.get('/api/loadDatasetMetadata', (req, res) => {
             try {
                 let id: string = req.query.trialId
                 if (!id)
@@ -339,7 +339,7 @@ export class FactoryBackend {
             }
 
         })
-        FactoryBackend.app.get('/api/loadDatasetRecords', (req, res) => {
+        FactoryLocalBackend.app.get('/api/loadDatasetRecords', (req, res) => {
             try {
                 let id: string = req.query.id
                 let category: string = req.query.category
@@ -358,7 +358,7 @@ export class FactoryBackend {
                 res.status(500).send(e)
             }
         })
-        FactoryBackend.app.get('/api/modManager/listMods', (req, res) => {
+        FactoryLocalBackend.app.get('/api/modManager/listMods', (req, res) => {
             // load the filter options - if searching by name, needs to match even partially to the 'name', 'summary', 'title', 'category'
             let textFilter: string = req.query.textFilter ? req.query.textFilter : ''
             let category: string = req.query.category ? req.query.category : ''
@@ -382,7 +382,7 @@ export class FactoryBackend {
                 res.status(500).send(e)
             }
         })
-        FactoryBackend.app.get('/api/modManager/getModInfo', (req, res) => {
+        FactoryLocalBackend.app.get('/api/modManager/getModInfo', (req, res) => {
             try {
                 if (!req.query.name) {
                     res.status(501).send('Missing name')
@@ -400,7 +400,7 @@ export class FactoryBackend {
                 res.status(500).send(e)
             }
         })
-        FactoryBackend.app.get('/api/cacheDataset/:id/:category', (req, res) => {
+        FactoryLocalBackend.app.get('/api/cacheDataset/:id/:category', (req, res) => {
             try {
                 // when a dataset is used, if it isn't cached already it will be
                 // this function just does that process manually, if you know you're about to run a ton of queries at once
@@ -412,7 +412,7 @@ export class FactoryBackend {
                 let category: string = req.params.category
                 FactoryDatabase.loadDatasetRecords(trialId, category).then((results: IGameFlowResults) => {
                     // cache dataset immediately
-                    FactoryBackend.cacheDataset(results, trialId, category)
+                    FactoryLocalBackend.cacheDataset(results, trialId, category)
 
                     res.send('OK')
                 }).catch((e) => {
@@ -431,7 +431,7 @@ export class FactoryBackend {
         * if it needs to be re-run, it gets re-run and set in memory
         * this means immediate calls after a query will be fast, and not require re-parsing tons of data
         * */
-        FactoryBackend.app.post('/api/deleteTrialData', (req, res) => {
+        FactoryLocalBackend.app.post('/api/deleteTrialData', (req, res) => {
             try {
                 let id = req.body.id
                 FactoryDatabase.deleteTrialData(id).then((data) => {
@@ -445,7 +445,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/clearTrialData/:id', (req, res) => {
+        FactoryLocalBackend.app.get('/api/clearTrialData/:id', (req, res) => {
             try {
                 FactoryDatabase.deleteTrialData(req.params.id).then((data) => {
                     res.send('OK')
@@ -458,7 +458,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/deleteTrial/:id', (req, res) => {
+        FactoryLocalBackend.app.get('/api/deleteTrial/:id', (req, res) => {
             try {
                 FactoryDatabase.deleteTrial(req.params.id).then((data) => {
                     res.send('OK')
@@ -471,7 +471,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/deleteSource/:id', (req, res) => {
+        FactoryLocalBackend.app.get('/api/deleteSource/:id', (req, res) => {
             try {
                 FactoryDatabase.deleteSource(req.params.id).then((data) => {
                     res.send('OK')
@@ -484,7 +484,7 @@ export class FactoryBackend {
                 res.status(500).send(e)
             }
         })
-        FactoryBackend.app.get('/api/deleteModList/:id', (req, res) => {
+        FactoryLocalBackend.app.get('/api/deleteModList/:id', (req, res) => {
             try {
                 FactoryDatabase.deleteModList(req.params.id).then((data) => {
                     res.send('OK')
@@ -497,7 +497,7 @@ export class FactoryBackend {
                 res.status(500).send(e)
             }
         })
-        FactoryBackend.app.get('/api/markTrialComplete/:id', (req, res) => {
+        FactoryLocalBackend.app.get('/api/markTrialComplete/:id', (req, res) => {
             try {
                 FactoryDatabase.loadTrial(req.params.id).then((trial) => {
                     if (!trial)
@@ -515,7 +515,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/testAndSaveCredentials', (req, res) => {
+        FactoryLocalBackend.app.get('/api/testAndSaveCredentials', (req, res) => {
             try {
                 const username = req.query.usr
                 const token = req.query.token
@@ -535,7 +535,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/dbInfo', (req, res) => {
+        FactoryLocalBackend.app.get('/api/dbInfo', (req, res) => {
             try {
                 if (FactoryDatabase.FactoryDB)
                     res.send({
@@ -549,7 +549,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.post('/api/performTrialAction', async (req, res) => {
+        FactoryLocalBackend.app.post('/api/performTrialAction', async (req, res) => {
             try {
                 let execution: 'prepare' | 'compile' | 'run' | 'analyze' = req.body.execution
                 let trial: Trial = await FactoryDatabase.loadTrial(req.body.trial, true)
@@ -618,7 +618,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/datasetQuery/:id/:category/:func/:chunk', async (req, res) => {
+        FactoryLocalBackend.app.get('/api/datasetQuery/:id/:category/:func/:chunk', async (req, res) => {
             try {
                 // run a query based on passed in query params.
                 // we wont send a whole dataset in the request - so, we'll need to query for the data here first, then apply the query, then return the results
@@ -628,10 +628,10 @@ export class FactoryBackend {
                 let func: string = req.params.func
                 let chunkSize: number = req.params.chunkSize
                 let options: IDatasetQueryOptions = req.query.options;
-                let results = FactoryBackend.cachedDatasets.get(trialId + '-' + category)
+                let results = FactoryLocalBackend.cachedDatasets.get(trialId + '-' + category)
                 if (!results) {
                     results = await FactoryDatabase.loadDatasetRecords(trialId, category)
-                    FactoryBackend.cacheDataset(results, trialId, category)
+                    FactoryLocalBackend.cacheDataset(results, trialId, category)
                     if (!results)
                         throw new Error('No data found for dataset')
                 }
@@ -670,7 +670,7 @@ export class FactoryBackend {
                 res.status(501).send(e)
             }
         })
-        FactoryBackend.app.get('/api/modManager/cacheModList/:id', (req, res) => {
+        FactoryLocalBackend.app.get('/api/modManager/cacheModList/:id', (req, res) => {
             try {
                 let id = req.params.id
                 FactoryDatabase.loadModList(id).then((modlist) => {
@@ -688,18 +688,18 @@ export class FactoryBackend {
         })
 
 
-        FactoryBackend.server = http.createServer(FactoryBackend.app)
-        /*FactoryBackend.io = new Server<
+        FactoryLocalBackend.server = http.createServer(FactoryLocalBackend.app)
+        /*FactoryLocalBackend.io = new Server<
             ClientToServerEvents,
             ServerToClientEvents,
             InterServerEvents,
             SocketData
-        >(FactoryBackend.server)*/
+        >(FactoryLocalBackend.server)*/
 
 
         return await new Promise((resolve) => {
             console.log('starting server on 3001')
-            FactoryBackend.server.listen(port, () => {
+            FactoryLocalBackend.server.listen(port, () => {
                 resolve(null)
             })
         })

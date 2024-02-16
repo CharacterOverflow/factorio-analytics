@@ -17,7 +17,7 @@ import {Factory} from "../src/Factory";
 import {ModList} from "../src/ModList";
 import {Source} from "../src/Source";
 import {FactoryDatabase} from "../src/FactoryDatabase";
-import {FactoryBackend} from "../src/FactoryBackend";
+import {FactoryLocalBackend} from "../src/FactoryLocalBackend";
 
 dotenv.config();
 

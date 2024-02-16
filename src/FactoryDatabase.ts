@@ -30,9 +30,6 @@ export class FactoryDatabase {
     static async initialize(datasources: PostgresConnectionOptions[] | BetterSqlite3ConnectionOptions[] = []) {
         Logging.log('info', 'Initializing Factory Database')
 
-        if (!Factory.factoryDataPath)
-            throw new Error('Initialize Factory first - need paths set up')
-
         if (datasources.length > 0) {
             // use the specified datasources instead of the default sqlite one
             // first source added is made default
@@ -40,6 +37,9 @@ export class FactoryDatabase {
                 await FactoryDatabase.configureDataSource(ds.name, ds)
             }
         } else {
+            if (!Factory.factoryDataPath)
+                throw new Error('Initialize Factory first - need paths set up')
+
             await FactoryDatabase.configureDataSource('default', {
                 type: 'better-sqlite3',
                 database: path.join(Factory.factoryDataPath, 'factory-storage', 'factory.db'),
@@ -148,7 +148,7 @@ export class FactoryDatabase {
 
     }
 
-    static async loadDatasetRecords(trialId: string, category: string): Promise<IGameFlowResults> {
+    static async loadDatasetRecords(trialId: string, category: string): Promise<IGameFlowResults | any> {
         Logging.log('info', `Loading dataset records for trial ${trialId} in category ${category}`)
         switch (category) {
             case 'item':
@@ -184,6 +184,36 @@ export class FactoryDatabase {
                             trialId,
                         }
                     }),
+                }
+            case 'all':
+                return {
+                    data: {
+                        item: await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).find({
+                            where: {
+                                trialId,
+                            }
+                        }),
+                        electric: await FactoryDatabase.FactoryDB.getRepository(GameFlowElectricRecord).find({
+                            where: {
+                                trialId,
+                            }
+                        }),
+                        circuit: await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).find({
+                            where: {
+                                trialId,
+                            }
+                        }),
+                        pollution: await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).find({
+                            where: {
+                                trialId,
+                            }
+                        }),
+                        system: await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).find({
+                            where: {
+                                trialId,
+                            }
+                        }),
+                    }
                 }
         }
         throw new Error('Invalid category - ' + category)
@@ -280,35 +310,35 @@ export class FactoryDatabase {
 
     static async insertItemRecords(records: GameFlowItemRecord[]) {
         // chunk size of 1000 to start
-        Logging.log('info', `Inserting ${records.length} item records for trial ${records[0].trialId}`)
+        Logging.log('info', `Inserting ${records.length} item records for trial ${records[0]?.trialId}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertElectricRecords(records: GameFlowElectricRecord[]) {
-        Logging.log('info', `Inserting ${records.length} electric records for trial ${records[0].trialId}`)
+        Logging.log('info', `Inserting ${records.length} electric records for trial ${records[0]?.trialId}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowElectricRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertCircuitRecords(records: GameFlowCircuitRecord[]) {
-        Logging.log('info', `Inserting ${records.length} circuit records for trial ${records[0].trialId}`)
+        Logging.log('info', `Inserting ${records.length} circuit records for trial ${records[0]?.trialId}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertPollutionRecords(records: GameFlowPollutionRecord[]) {
-        Logging.log('info', `Inserting ${records.length} pollution records for trial ${records[0].trialId}`)
+        Logging.log('info', `Inserting ${records.length} pollution records for trial ${records[0]?.trialId}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertSystemRecords(records: GameFlowSystemRecord[]) {
-        Logging.log('info', `Inserting ${records.length} system records for trial ${records[0].trialId}`)
+        Logging.log('info', `Inserting ${records.length} system records for trial ${records[0]?.trialId}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).insert(records.slice(i, i + 1000))
         }

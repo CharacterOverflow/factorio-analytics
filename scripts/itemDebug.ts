@@ -17,7 +17,7 @@ import {Factory} from "../src/Factory";
 import {ModList} from "../src/ModList";
 import {Source} from "../src/Source";
 import {FactoryDatabase} from "../src/FactoryDatabase";
-import {FactoryBackend} from "../src/FactoryBackend";
+import {FactoryLocalBackend} from "../src/FactoryLocalBackend";
 import {DatasetQuery} from "../src/DatasetAnalysis";
 import {IGameFlowItemTick} from "../src/Dataset";
 import {FactorioApi} from "../src/FactorioApi";
@@ -43,12 +43,13 @@ async function main() {
     console.log('SETUP DEBUG STAGE 1 COMPLETE');
 
     await Factory.initialize({
-        installDir: '/home/overflow/Apps/factorio_auto_v3',
-        hideConsole: false
+        installDir: '/home/overflow/Apps/factorio_auto_v6',
+        hideConsole: false,
+        build: 'alpha'
         // user info is provided auto-magically from oldenv.txt
     })
     await FactoryDatabase.initialize()
-    await FactoryBackend.startServer();
+    await FactoryLocalBackend.startServer();
 
     //const circuitTestBp = await fs.readFile('/home/overflow/Projects/factorio-analytics/factory/examples/circuit_test.txt', 'utf8');
     const scienceTestBp = await fs.readFile('/home/overflow/Projects/factorio-analytics/factory/examples/45spm_base.bp', 'utf-8');
@@ -78,8 +79,8 @@ async function main() {
     await FactoryDatabase.saveTrial(trial, true)
 
     try {
-        let data = await Factory.analyzeTrial(trial, true, true)
-
+        let data = await Factory.runTrial(trial)
+/*
         let q1 = new DatasetQuery<IGameFlowItemTick>(data.items.data, {
             smoothing: 5,
             valueField: 'cons',
@@ -92,7 +93,8 @@ async function main() {
         let sl = q1.summaryByLabel();
         let tc = q1.summaryByTickChunk(q1.dataset, 1800)
         let mlist = await FactorioApi.listFactorioMods(undefined, 'max')
-        console.log(data, ul, gl, g2, sl, tc);
+        console.log(data, ul, gl, g2, sl, tc);*/
+        console.log('done')
     } catch (e) {
         console.log(e)
     }

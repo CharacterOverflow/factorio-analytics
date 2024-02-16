@@ -342,6 +342,10 @@ local runExports = function(tick)
         -- beginning the trial, placing objects, etc. Assuming no errors in that process, we continue as intended
         run_trial()
         setup = true;
+
+        -- take a screenshot last thing before we quit
+        --game.take_screenshot({ path = 'data/' .. UID .. '.png', show_entity_info = true }) -- DOESNT WORK ON HEADLESS
+
     end
 
 
@@ -376,6 +380,11 @@ script.on_nth_tick(5184000, function()
         -- beginning the trial, placing objects, etc. Assuming no errors in that process, we continue as intended
         run_trial()
         setup = true;
+
+        -- take a screenshot last thing before we quit
+        -- game.take_screenshot({ path = 'data/' .. UID .. '.png', show_entity_info = true }) -- DOESNT WORK ON HEADLESS
+
+
     end
 end)
 
