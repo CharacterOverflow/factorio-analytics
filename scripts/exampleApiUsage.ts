@@ -84,7 +84,6 @@ async function main() {
 
     // you can also request the source data in-full
     const sourceData = await axios.get(baseUrl + '/query/' + trialIdHeavy + '/data_items')
-    console.log('Source data:', sourceData.data.slice(0, 10))
 
     // other 'data' options are available for the other types - data_pollution gets pollution data, data_system gets game process data, etc
     // data_all can be used to return ALL datasets
