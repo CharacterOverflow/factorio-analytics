@@ -149,7 +149,7 @@ export class FactoryApiIngestServer {
                 if (body?.variant === 'source') {
                     if (body.source != undefined) {
                         let s = new Source({
-                            text: body.source,
+                            text: Source.anonymizeBlueprintString(body.source),
                             variant: 'blueprint'
                         })
 
@@ -173,8 +173,9 @@ export class FactoryApiIngestServer {
                     if (tin && tin?.source) {
                         // if the source is over 40 characters and starts with 0e, make a source first
                         if (tin?.source.length > 40 && tin?.source.startsWith('0e')) {
+                            let bpStr = Source.anonymizeBlueprintString(tin.source)
                             let s = new Source({
-                                text: tin.source,
+                                text: bpStr,
                                 variant: 'blueprint'
                             })
                             FactoryDatabase.saveSource(s).then((s) => {

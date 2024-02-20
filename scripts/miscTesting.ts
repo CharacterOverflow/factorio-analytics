@@ -15,6 +15,7 @@ import {
     FactoryApiExecutionRequest,
     FactoryApiExecutionStatus
 } from "../src/api/FactoryApiIngest";
+import {FactorioAnalyticsApi} from "../src/FactorioAnalyticsApi";
 
 require('dotenv').config();
 
@@ -24,8 +25,12 @@ async function main() {
     * #TODO
     *   - Add more logging - use ai if anything, but log constatntlyyyy anything big that happens
     * */
+    //const bpPath = '/home/overflow/Projects/factorio-analytics/factory/examples/1200spm_base.bp'
+    const bpPath = '/home/overflow/Projects/factorio-analytics/factory/examples/circuit_test.txt'
+    //const bpStr = fs.readFileSync(bpPath, 'utf-8')
+    const bpStr = '0eNqdmOtu4yAQhV+l4rdTmasvr7KqVk5CKyQHW0BWG0V+95Ja6lZd487Mr8gEPh+O4TD2nR3Hq52D84n1d3a28RTcnNzkWc+Sjenp0cQq5k6Tj6z/dWfRvflhfPROt9nmbi7ZS+7hh8vjKqbJ28PrNfjhZNmSR/qz/ct6vlQ/jk1h8HGeQjoc7Zi+DBbLS8WsTy45u6r4uLj99tfL0YZML9y/YvMU3TqfO8ukg6rYLf90y0PPN4r4R5lHl1Ju+x9gVkD7rLO+swv2tP6rNoASLEvsyFJQSr0D0VDInhLzCTnm4TYcnI82bPuknvVKaiBONaVFsAM238FiA9zCwRqluCOAQYp5jXBZoDRzjkBLHFrA/RA4PyScLHFkhbCjxtmhEWiOQxu4HxznB2IX1jhyC7cD6UYHJ+MeoajBbuBsFhwMxrksBNwLXHAI+B7EbW6hKEdKDtTN81tjywC1iTGEaC9JaihhXoK1lPguwTpscbJplqwpGVrQJDklNUswgaybtucnCflSUqQIKVhiYQu67dkZQmKUFDWU1SkKsJayEkowyhlRYKma4FiJxQk1E4fEqhKEmglGloQaAUZWhLoGRtb4kxwGNviTHAaGV2LIx9fiD3IYGP4+pFFgDS/D1A74pVo/NvRfvnhUbBwyKbd93KBif2yIa/+Wq6YTTas6aTqzLO8qG5or'
 
-    await Factory.initialize({
+    /*await Factory.initialize({
         hideConsole: false,
         // user info is provided auto-magically from oldenv.txt
     })
@@ -73,39 +78,13 @@ async function main() {
                 FactoryApiExecutionStatus
             ]
         }
-    ])
+    ])*/
 
-    //const circuitTestBp = await fs.readFile('/home/overflow/Projects/factorio-analytics/factory/examples/circuit_test.txt', 'utf8');
-    const scienceTestBp = await fs.readFile('/home/overflow/Projects/factorio-analytics/factory/examples/45spm_base.bp', 'utf-8');
+    // query the public api!
+    let t = await FactorioAnalyticsApi.query('trial', '39ac9173-562b-4f68-8e0d-03b85dc77eee')
+    let s = await FactorioAnalyticsApi.query('source', t.source)
 
-    // try running a basic new trial. circuts to test with for now
-    let sciSource = new Source({
-        text: scienceTestBp,
-        variant: 'blueprint',
-        name: 'Sci Test',
-        desc: 'A simple test to see if sci data is being recorded properly',
-        tags: ['test']
-    })
-
-    let trial = new Trial({
-        source: sciSource,
-        length: 7200 * 2,
-        tickInterval: 60,
-        initialBots: 200,
-        recordItems: true,
-        recordSystem: true,
-        recordCircuits: true,
-        recordPollution: true,
-    })
-
-    await FactoryDatabase.saveTrial(trial, true)
-
-    try {
-        let data = await Factory.analyzeTrial(trial,true ,true)
-        return data;
-    } catch (e) {
-        console.log(e)
-    }
+    console.log(t)
 
     //let s = source.gridSize
 

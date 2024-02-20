@@ -40,8 +40,10 @@ import {
 
 import {Source, ISource, SourceBlueprintDetails} from './src/Source'
 import { BlueprintChallenge } from './src/BlueprintChallenge';
+import { FactorioAnalyticsApi } from './src/FactorioAnalyticsApi';
 
 export {
+    FactorioAnalyticsApi,
     Factory,
     Logging,
     Trial,

@@ -52,7 +52,7 @@ async function main() {
     // the returned values from running a trial contain the execution request id, and the trial id
     // you can then use these values going forward in a variety of other paths, listed below
     // Once the trial is finished running, data will become available. Specific paths can be hit to check status easily
-
+/*
     const trialIdHeavy = trialHeavy.data.trialId
     const execIdHeavy = trialHeavy.data.executionId
     const trialIdLight = trialLight.data.trialId
@@ -84,7 +84,7 @@ async function main() {
 
     // you can also request the source data in-full
     const sourceData = await axios.get(baseUrl + '/query/' + trialIdHeavy + '/data_items')
-
+*/
     // other 'data' options are available for the other types - data_pollution gets pollution data, data_system gets game process data, etc
     // data_all can be used to return ALL datasets
 

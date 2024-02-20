@@ -107,15 +107,16 @@ export class FactoryApiQueryServer {
                                 },
                                 relations: ['source']
                             }).then((s) => {
-                                if (s)
+                                if (s) {
+                                    s.source = s.source.id
                                     res.status(200).send(s)
-                                else
+                                } else
                                     res.status(404).send('Not found')
                             }).catch((e) => {
                                 res.status(500).send(e)
                             })
                             break;
-                        case 'data_items':
+                        case 'data_item':
                             // do data_items stuff
                             FactoryDatabase.loadDatasetRecords(id, 'item').then((s) => {
                                 if (s)

@@ -115,6 +115,9 @@ export class Source implements ISource {
 
     updateHash(): boolean {
         if (this.text) {
+            // Whether it be savegame path or blueprint string, we need to hash it
+            /// BUT, if it's a blueprint string, we first need to parse it and remove the icons, label, and description fields if they exist
+            /// this will truly anonymize the source - then after we turn back into a blueprint string, we hash and save it
             this.id = crypto.createHash('sha256').update(this.text).digest('hex');
             return true;
         } else {
@@ -155,6 +158,23 @@ export class Source implements ISource {
         return data
     }
 
+    static anonymizeBlueprintString(bpStr: string): string {
+        let bpOBj = Source.blueprintStringToObject(bpStr);
+        if (bpOBj?.blueprint?.label)
+            delete bpOBj.blueprint.label;
+        if (bpOBj?.blueprint?.description)
+            delete bpOBj.blueprint.description;
+        if (bpOBj?.blueprint?.icons)
+            delete bpOBj.blueprint.icons;
+        return Source.objectToBlueprintString(bpOBj);
+    }
+
+    static objectToBlueprintString(bpObj: any): string {
+        let json = JSON.stringify(bpObj);
+        let compressed = zlib.deflateSync(json);
+        return '0' + compressed.toString('base64');
+    }
+
 
 }
 
@@ -163,6 +183,8 @@ export interface BlueprintDetails {
     entities: any[];
     tiles: any[];
     item: string;
+    label: string;
+    description: string;
     version: number;
 }
 
