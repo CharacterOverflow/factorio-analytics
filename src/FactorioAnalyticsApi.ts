@@ -1,4 +1,9 @@
-import {FactoryApiExecutionStatus, FactoryApiIngest, ITrialIngest} from "./api/FactoryApiIngest";
+import {
+    FactoryApiExecutionRequest,
+    FactoryApiExecutionStatus,
+    FactoryApiIngest,
+    ITrialIngest
+} from "./api/FactoryApiIngest";
 import axios from "axios";
 import {ITrial} from "./Trial";
 import {ISource} from "./Source";
@@ -10,7 +15,7 @@ import {
     IGameFlowPollutionTick, IGameFlowSystemTick
 } from "./Dataset";
 
-export type TFactoryApiQueryVariant = 'status' | 'source' | 'modlist' | 'trial' | 'data_items' | 'data_electric' | 'data_circuit' | 'data_pollution' | 'data_system' | 'data_all'
+export type TFactoryApiQueryVariant = 'status' | 'source' | 'modlist' | 'trial' | 'data_item' | 'data_electric' | 'data_circuit' | 'data_pollution' | 'data_system' | 'data_all'
 
 /*
 * implement and use the API here for the package itself
@@ -34,17 +39,15 @@ export class FactorioAnalyticsApi {
             variant: 'source',
             source: bpStr
         }
-        const resp = await FactorioAnalyticsApi.submit(params)
-        return resp.data
+        return await FactorioAnalyticsApi.submit(params)
     }
 
-    static async submitTrial( trialParams: ITrialIngest ) {
+    static async submitTrial( trialParams: ITrialIngest ):  Promise<FactoryApiExecutionRequest> {
         const params: FactoryApiIngest = {
             variant: 'trial',
             trial: trialParams
         }
-        const resp = await FactorioAnalyticsApi.submit(params)
-        return resp.data
+        return await FactorioAnalyticsApi.submit(params)
     }
 
     static async submitModList( mods: string[]) {
@@ -61,42 +64,42 @@ export class FactorioAnalyticsApi {
 
     static async queryTrial( id: string ): Promise<ITrial> {
         const resp = await FactorioAnalyticsApi.query('trial', id)
-        return resp.data as ITrial
+        return resp as ITrial
     }
 
     static async querySource( id: string ): Promise<string> {
         const resp = await FactorioAnalyticsApi.query('source', id)
-        return resp.data as string
+        return resp as string
     }
 
     static async queryStatus( execId: string ): Promise<FactoryApiExecutionStatus> {
         const resp = await FactorioAnalyticsApi.query('status', execId)
-        return resp.data as FactoryApiExecutionStatus
+        return resp as FactoryApiExecutionStatus
     }
 
     static async queryItemData( id: string ): Promise<IGameFlowItemTick[]> {
-        const resp = await FactorioAnalyticsApi.query('data_items', id)
-        return resp.data as IGameFlowItemTick[]
+        const resp = await FactorioAnalyticsApi.query('data_item', id)
+        return resp as IGameFlowItemTick[]
     }
 
     static async queryElectricData( id: string ): Promise<IGameFlowElectricTick[]> {
         const resp = await FactorioAnalyticsApi.query('data_electric', id)
-        return resp.data as IGameFlowElectricTick[]
+        return resp as IGameFlowElectricTick[]
     }
 
     static async queryCircuitData( id: string ): Promise<IGameFlowCircuitTick[]> {
         const resp = await FactorioAnalyticsApi.query('data_circuit', id)
-        return resp.data as IGameFlowCircuitTick[]
+        return resp as IGameFlowCircuitTick[]
     }
 
     static async queryPollutionData( id: string ): Promise<IGameFlowPollutionTick[]> {
         const resp = await FactorioAnalyticsApi.query('data_pollution', id)
-        return resp.data as IGameFlowPollutionTick[]
+        return resp as IGameFlowPollutionTick[]
     }
 
     static async querySystemData( id: string ): Promise<IGameFlowSystemTick[]> {
         const resp = await FactorioAnalyticsApi.query('data_system', id)
-        return resp.data as IGameFlowSystemTick[]
+        return resp as IGameFlowSystemTick[]
     }
 
     static async queryAllData( id: string ): Promise<{
@@ -107,7 +110,7 @@ export class FactorioAnalyticsApi {
         system: IGameFlowSystemTick[]
     }> {
         const resp = await FactorioAnalyticsApi.query('data_all', id);
-        return resp.data as {
+        return resp as {
             item: IGameFlowItemTick[],
             electric: IGameFlowElectricTick[],
             circuit: IGameFlowCircuitTick[],

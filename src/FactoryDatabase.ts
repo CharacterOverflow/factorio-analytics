@@ -99,16 +99,16 @@ export class FactoryDatabase {
     static async deleteTrialData(trialId: string) {
         Logging.log('info', `Deleting trial data for trial ${trialId}`)
         await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).delete({
-            trialId
+            trial_id: trialId,
         })
         await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).delete({
-            trialId
+            trial_id: trialId,
         })
         await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).delete({
-            trialId
+            trial_id: trialId,
         })
         await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).delete({
-            trialId
+            trial_id: trialId,
         })
         let t = await FactoryDatabase.loadTrial(trialId, false)
         if (t) {
@@ -132,11 +132,11 @@ export class FactoryDatabase {
             throw new Error('Invalid trialId')
 
         // STOP!!!! Dont actually analyze data here - this is just meant to return info like number of records, etc
-        let itemRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).count({where: {trialId}})
-        let electricRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowElectricRecord).count({where: {trialId}})
-        let circuitRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).count({where: {trialId}})
-        let pollutionRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).count({where: {trialId}})
-        let systemRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).count({where: {trialId}})
+        let itemRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).count({where: {trial_id: trialId,}})
+        let electricRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowElectricRecord).count({where: {trial_id: trialId,}})
+        let circuitRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).count({where: {trial_id: trialId,}})
+        let pollutionRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).count({where: {trial_id: trialId,}})
+        let systemRecords = await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).count({where: {trial_id: trialId,}})
 
         return {
             item: itemRecords,
@@ -155,7 +155,7 @@ export class FactoryDatabase {
                 return {
                     data: await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).find({
                         where: {
-                            trialId,
+                            trial_id: trialId,
                         }
                     }),
                 }
@@ -165,7 +165,7 @@ export class FactoryDatabase {
                 return {
                     data: await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).find({
                         where: {
-                            trialId,
+                            trial_id: trialId,
                         }
                     }),
                 }
@@ -173,7 +173,7 @@ export class FactoryDatabase {
                 return {
                     data: await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).find({
                         where: {
-                            trialId,
+                            trial_id: trialId,
                         }
                     }),
                 }
@@ -181,7 +181,7 @@ export class FactoryDatabase {
                 return {
                     data: await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).find({
                         where: {
-                            trialId,
+                            trial_id: trialId,
                         }
                     }),
                 }
@@ -190,27 +190,27 @@ export class FactoryDatabase {
                     data: {
                         item: await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).find({
                             where: {
-                                trialId,
+                                trial_id: trialId,
                             }
                         }),
                         electric: await FactoryDatabase.FactoryDB.getRepository(GameFlowElectricRecord).find({
                             where: {
-                                trialId,
+                                trial_id: trialId,
                             }
                         }),
                         circuit: await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).find({
                             where: {
-                                trialId,
+                                trial_id: trialId,
                             }
                         }),
                         pollution: await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).find({
                             where: {
-                                trialId,
+                                trial_id: trialId,
                             }
                         }),
                         system: await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).find({
                             where: {
-                                trialId,
+                                trial_id: trialId,
                             }
                         }),
                     }
@@ -310,38 +310,58 @@ export class FactoryDatabase {
 
     static async insertItemRecords(records: GameFlowItemRecord[]) {
         // chunk size of 1000 to start
-        Logging.log('info', `Inserting ${records.length} item records for trial ${records[0]?.trialId}`)
+        Logging.log('info', `Inserting ${records.length} item records for trial ${records[0]?.trial_id}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertElectricRecords(records: GameFlowElectricRecord[]) {
-        Logging.log('info', `Inserting ${records.length} electric records for trial ${records[0]?.trialId}`)
+        Logging.log('info', `Inserting ${records.length} electric records for trial ${records[0]?.trial_id}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowElectricRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertCircuitRecords(records: GameFlowCircuitRecord[]) {
-        Logging.log('info', `Inserting ${records.length} circuit records for trial ${records[0]?.trialId}`)
+        Logging.log('info', `Inserting ${records.length} circuit records for trial ${records[0]?.trial_id}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertPollutionRecords(records: GameFlowPollutionRecord[]) {
-        Logging.log('info', `Inserting ${records.length} pollution records for trial ${records[0]?.trialId}`)
+        Logging.log('info', `Inserting ${records.length} pollution records for trial ${records[0]?.trial_id}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).insert(records.slice(i, i + 1000))
         }
     }
 
     static async insertSystemRecords(records: GameFlowSystemRecord[]) {
-        Logging.log('info', `Inserting ${records.length} system records for trial ${records[0]?.trialId}`)
+        Logging.log('info', `Inserting ${records.length} system records for trial ${records[0]?.trial_id}`)
         for (let i = 0; i < records.length; i += 1000) {
             await FactoryDatabase.FactoryDB.getRepository(GameFlowSystemRecord).insert(records.slice(i, i + 1000))
         }
+    }
+
+    static async findLargestTrialOfSource(sourceId: string): Promise<string> {
+        const q = 'select id,\n' +
+            '       "endedAt",\n' +
+            '       "recordItems",\n' +
+            '       "recordElectric",\n' +
+            '       "recordCircuits",\n' +
+            '       "recordSystem",\n' +
+            '       (length / trial."tickInterval") as "tickDataPoints"\n' +
+            'from trial\n' +
+            'where "sourceId" = $1\n' +
+            'and stage = \'analyzed\'\n' +
+            'order by "tickDataPoints" desc, "endedAt" desc\n' +
+            'LIMIT 1'
+        const r = await FactoryDatabase.FactoryDB.query(q, [sourceId])
+        if (r && r.length == 1)
+            return r[0]
+        else
+            throw new Error('No trial has been run for this source')
     }
 
 

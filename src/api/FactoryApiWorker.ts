@@ -120,12 +120,12 @@ export class FactoryApiWorker {
             let nr = await this.grabNewRequest();
             if (nr && !nr.allocatedAt) {
                 await FactoryDatabase.FactoryDB.getRepository(FactoryApiExecutionStatus).insert({
-                    executionId: nr.executionId,
+                    execution_id: nr.execution_id,
                     loggedAt: new Date(),
                     worker: FactoryApiWorker.worker
                 })
                 await FactoryDatabase.FactoryDB.getRepository(FactoryApiExecutionRequest).update({
-                    executionId: nr.executionId
+                    execution_id: nr.execution_id
                 }, {
                     allocatedAt: new Date()
                 })
@@ -136,7 +136,7 @@ export class FactoryApiWorker {
                     await this.processExec(nr)
 
                     await FactoryDatabase.FactoryDB.getRepository(FactoryApiExecutionStatus).update({
-                        executionId: nr.executionId
+                        execution_id: nr.execution_id
                     }, {
                         success: true
                     })
@@ -144,7 +144,7 @@ export class FactoryApiWorker {
                     // if the error occurred and is caught here, update factory status for this request to success: false
                     Logging.log('error', e)
                     await FactoryDatabase.FactoryDB.getRepository(FactoryApiExecutionStatus).update({
-                        executionId: nr.executionId
+                        execution_id: nr.execution_id
                     }, {
                         success: false
                     })

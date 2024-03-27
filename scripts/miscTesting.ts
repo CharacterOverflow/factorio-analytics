@@ -1,20 +1,5 @@
 import path from "path";
 import * as fs from "fs-extra";
-import {Factory} from "../src/Factory";
-import {FactoryDatabase} from "../src/FactoryDatabase";
-import {Source, SourceBlueprintDetails} from "../src/Source";
-import {Trial} from "../src/Trial";
-import {ModList} from "../src/ModList";
-import {
-    GameFlowCircuitRecord,
-    GameFlowElectricRecord,
-    GameFlowItemRecord,
-    GameFlowPollutionRecord, GameFlowSystemRecord
-} from "../src/Dataset";
-import {
-    FactoryApiExecutionRequest,
-    FactoryApiExecutionStatus
-} from "../src/api/FactoryApiIngest";
 import {FactorioAnalyticsApi} from "../src/FactorioAnalyticsApi";
 
 require('dotenv').config();
@@ -25,66 +10,75 @@ async function main() {
     * #TODO
     *   - Add more logging - use ai if anything, but log constatntlyyyy anything big that happens
     * */
-    //const bpPath = '/home/overflow/Projects/factorio-analytics/factory/examples/1200spm_base.bp'
-    const bpPath = '/home/overflow/Projects/factorio-analytics/factory/examples/circuit_test.txt'
-    //const bpStr = fs.readFileSync(bpPath, 'utf-8')
-    const bpStr = '0eNqdmOtu4yAQhV+l4rdTmasvr7KqVk5CKyQHW0BWG0V+95Ja6lZd487Mr8gEPh+O4TD2nR3Hq52D84n1d3a28RTcnNzkWc+Sjenp0cQq5k6Tj6z/dWfRvflhfPROt9nmbi7ZS+7hh8vjKqbJ28PrNfjhZNmSR/qz/ct6vlQ/jk1h8HGeQjoc7Zi+DBbLS8WsTy45u6r4uLj99tfL0YZML9y/YvMU3TqfO8ukg6rYLf90y0PPN4r4R5lHl1Ju+x9gVkD7rLO+swv2tP6rNoASLEvsyFJQSr0D0VDInhLzCTnm4TYcnI82bPuknvVKaiBONaVFsAM238FiA9zCwRqluCOAQYp5jXBZoDRzjkBLHFrA/RA4PyScLHFkhbCjxtmhEWiOQxu4HxznB2IX1jhyC7cD6UYHJ+MeoajBbuBsFhwMxrksBNwLXHAI+B7EbW6hKEdKDtTN81tjywC1iTGEaC9JaihhXoK1lPguwTpscbJplqwpGVrQJDklNUswgaybtucnCflSUqQIKVhiYQu67dkZQmKUFDWU1SkKsJayEkowyhlRYKma4FiJxQk1E4fEqhKEmglGloQaAUZWhLoGRtb4kxwGNviTHAaGV2LIx9fiD3IYGP4+pFFgDS/D1A74pVo/NvRfvnhUbBwyKbd93KBif2yIa/+Wq6YTTas6aTqzLO8qG5or'
+    const bpFile = '/home/overflow/Projects/factorio-analytics/factory/examples/45spm_base.bp'
+    const bpStr = await fs.readFile(bpFile, 'utf8')
 
-    /*await Factory.initialize({
-        hideConsole: false,
-        // user info is provided auto-magically from oldenv.txt
+    // submit a blueprint
+    let source = await FactorioAnalyticsApi.submitSource(bpStr);
+    console.log('Submitted source:', source)
+
+    // submit a trial to run for this source - this will be a long-running trial!
+    let longTrial = await FactorioAnalyticsApi.submitTrial({
+        name: '45spm_base 3_27_2024',
+        desc: 'Basic base blueprint - long test. 108k ticks, 300 tick interval, all data recorded',
+        source: source,
+        length: 108000,
+        tickInterval: 300,
+        recordItems: true,
+        recordElectric: true,
+        recordCircuit: true,
+        recordPollution: true,
+        recordSystem: true
     })
-    await FactoryDatabase.initialize([
-        {
-            name: 'cache',
-            type: 'postgres',
-            host: process.env.PG_CACHE_HOST,
-            port: parseInt(process.env.PG_CACHE_PORT),
-            username: process.env.PG_CACHE_USER,
-            password: process.env.PG_CACHE_PASS,
-            poolSize: 4,
-            synchronize: true,
-            entities: [
-                Trial,
-                Source,
-                ModList,
-                GameFlowItemRecord,
-                GameFlowElectricRecord,
-                GameFlowCircuitRecord,
-                GameFlowPollutionRecord,
-                GameFlowSystemRecord,
-                FactoryApiExecutionRequest,
-                FactoryApiExecutionStatus
-            ]
-        }, {
-            name: 'storage',
-            type: 'postgres',
-            host: process.env.PG_STORAGE_HOST,
-            port: parseInt(process.env.PG_STORAGE_PORT),
-            username: process.env.PG_STORAGE_USER,
-            password: process.env.PG_STORAGE_PASS,
-            poolSize: 4,
-            synchronize: true,
-            entities: [
-                Trial,
-                Source,
-                ModList,
-                GameFlowItemRecord,
-                GameFlowElectricRecord,
-                GameFlowCircuitRecord,
-                GameFlowPollutionRecord,
-                GameFlowSystemRecord,
-                FactoryApiExecutionRequest,
-                FactoryApiExecutionStatus
-            ]
+
+    // submit a short trial
+    let shortTrial = await FactorioAnalyticsApi.submitTrial({
+        name: '45spm_base 3_27_2024_short',
+        desc: 'Basic base blueprint - short test. 18k ticks, 60 tick interval, only item data',
+        source: source,
+        length: 36000,
+        tickInterval: 60,
+        recordItems: true,
+        recordElectric: false,
+        recordCircuit: false,
+        recordPollution: false,
+        recordSystem: false
+    })
+
+    // both trials above
+    console.log('Submitted trials:')
+    console.table([longTrial, shortTrial])
+
+    let ltHandle = setInterval(async () => {
+        try {
+            let longTrialStatus = await FactorioAnalyticsApi.queryStatus(longTrial.execution_id)
+            if (longTrialStatus) {
+                console.log('Long trial status:')
+                console.table(longTrialStatus)
+                if (longTrialStatus.success != null) {
+                    clearInterval(ltHandle)
+                    longTrial = await FactorioAnalyticsApi.query('trial', longTrial.trialId)
+                }
+            }
+        } catch (e) {
+            console.log('Error querying long trial status:', e)
         }
-    ])*/
-
-    // query the public api!
-    let t = await FactorioAnalyticsApi.query('trial', '39ac9173-562b-4f68-8e0d-03b85dc77eee')
-    let s = await FactorioAnalyticsApi.query('source', t.source)
-
-    console.log(t)
+    }, 2000)
+    let stHandle = setInterval(async () => {
+        try {
+            let shortTrialStatus = await FactorioAnalyticsApi.queryStatus(shortTrial.execution_id)
+            if (shortTrialStatus) {
+                console.log('Short trial status:')
+                console.table(shortTrialStatus)
+                if (shortTrialStatus?.success != null) {
+                    clearInterval(stHandle)
+                    shortTrial = await FactorioAnalyticsApi.query('trial', shortTrial.trialId)
+                }
+            }
+        } catch (e) {
+            console.log('Error querying short trial status:', e)
+        }
+    }, 2000)
 
     //let s = source.gridSize
 

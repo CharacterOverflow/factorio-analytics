@@ -71,37 +71,44 @@ export class Trial implements ITrial {
     length: number
 
     @Column({
+        name: 'tick_interval',
         nullable: false,
     })
     tickInterval: number
 
     @Column({
+        name: 'initial_bots',
         nullable: false,
     })
     initialBots: number
 
     // Boolean flags for each 'data' category, used to determine which data to record
     @Column({
+        name: 'record_items',
         nullable: false
     })
     recordItems: boolean
 
     @Column({
+        name: 'record_electric',
         nullable: false,
     })
     recordElectric: boolean
 
     @Column({
+        name: 'record_circuits',
         nullable: false,
     })
     recordCircuits: boolean
 
     @Column({
+        name: 'record_pollution',
         nullable: false,
     })
     recordPollution: boolean
 
     @Column({
+        name: 'record_system',
         nullable: false,
     })
     recordSystem: boolean
@@ -127,21 +134,25 @@ export class Trial implements ITrial {
     *
     * */
     @Column({
+        name: 'created_at',
         nullable: true,
     })
     createdAt: Date
 
     @Column({
+        name: 'started_run_at',
         nullable: true
     })
     startedRunAt: Date
 
     @Column({
+        name: 'started_at',
         nullable: true
     })
     startedAt: Date
 
     @Column({
+        name: 'ended_at',
         nullable: true
     })
     endedAt: Date
@@ -149,6 +160,7 @@ export class Trial implements ITrial {
     // text result of trial - logs and/or system data
     @Column({
         nullable: true,
+        name: 'text_logs',
         type: 'simple-array'
     })
     textLogs: string[]
@@ -164,30 +176,35 @@ export class Trial implements ITrial {
 
     @Column({
         nullable: true,
+        name: 'item_metadata',
         type: 'simple-json'
     })
     itemMetadata: any = null;
 
     @Column({
         nullable: true,
+        name: 'electric_metadata',
         type: 'simple-json'
     })
     electricMetadata: any = null;
 
     @Column({
         nullable: true,
+        name: 'circuit_metadata',
         type: 'simple-json'
     })
     circuitMetadata: any = null;
 
     @Column({
         nullable: true,
+        name: 'pollution_metadata',
         type: 'simple-json'
     })
     pollutionMetadata: any = null;
 
     @Column({
         nullable: true,
+        name: 'system_metadata',
         type: 'simple-json'
     })
     systemMetadata: any = null;

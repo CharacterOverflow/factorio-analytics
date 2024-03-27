@@ -133,7 +133,7 @@ export interface IGameFlowSystemTick extends IGameFlow {
 export class GameFlowItemRecord implements IGameFlowItemTick {
 
     @PrimaryColumn()
-    trialId: string;
+    trial_id: string;
 
     @PrimaryColumn()
     label: string;
@@ -151,7 +151,7 @@ export class GameFlowItemRecord implements IGameFlowItemTick {
         if (!params)
             return
 
-        this.trialId = trialId
+        this.trial_id = trialId
         this.label = params.label;
         this.tick = params.tick;
         this.cons = params.cons;
@@ -169,7 +169,7 @@ export class GameFlowItemRecord implements IGameFlowItemTick {
 export class GameFlowElectricRecord implements IGameFlowElectricTick {
 
     @PrimaryColumn()
-    trialId: string;
+    trial_id: string;
 
     @PrimaryColumn()
     label: string;
@@ -190,7 +190,7 @@ export class GameFlowElectricRecord implements IGameFlowElectricTick {
         if (!params)
             return
 
-        this.trialId = trialId
+        this.trial_id = trialId
         this.label = params.label;
         this.tick = params.tick;
         this.networkId = params.networkId;
@@ -204,7 +204,7 @@ export class GameFlowElectricRecord implements IGameFlowElectricTick {
 export class GameFlowCircuitRecord implements IGameFlowCircuitTick {
 
     @PrimaryColumn()
-    trialId: string;
+    trial_id: string;
 
     @PrimaryColumn()
     networkId: number;
@@ -229,7 +229,7 @@ export class GameFlowCircuitRecord implements IGameFlowCircuitTick {
         if (!params)
             return
 
-        this.trialId = trialId
+        this.trial_id = trialId
         this.networkId = params.networkId;
         this.signalType = params.signalType;
         this.tick = params.tick;
@@ -248,7 +248,7 @@ export class GameFlowCircuitRecord implements IGameFlowCircuitTick {
 export class GameFlowPollutionRecord implements IGameFlowPollutionTick {
 
     @PrimaryColumn()
-    trialId: string;
+    trial_id: string;
 
     @PrimaryColumn()
     label: string;
@@ -263,7 +263,7 @@ export class GameFlowPollutionRecord implements IGameFlowPollutionTick {
         if (!params)
             return
 
-        this.trialId = trialId
+        this.trial_id = trialId
         this.label = params?.label ?? 'Pollution'
         this.tick = params.tick;
         this.count = params.count;
@@ -278,7 +278,7 @@ export class GameFlowPollutionRecord implements IGameFlowPollutionTick {
 export class GameFlowSystemRecord implements IGameFlowSystemTick {
 
     @PrimaryColumn()
-    trialId: string;
+    trial_id: string;
 
     @Column()
     label: string;
@@ -450,7 +450,7 @@ export class GameFlowSystemRecord implements IGameFlowSystemTick {
         if (!params)
             return
 
-        this.trialId = trialId
+        this.trial_id = trialId
         this.label = params?.label ?? 'System'
         this.tick = params.tick;
         this.timestamp = params.timestamp;

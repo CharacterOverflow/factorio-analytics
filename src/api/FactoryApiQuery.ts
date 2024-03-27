@@ -187,6 +187,40 @@ export class FactoryApiQueryServer {
 
             })
 
+            ex.get('/check/:id', (req, res) => {
+                // checks if a source exists already or not
+                let id = req.params.id
+                FactoryDatabase.FactoryDB.getRepository('Source').exists({
+                    where: {
+                        id: id
+                    }
+                }).then((s) => {
+                    if (s != null)
+                        res.status(200).send(s)
+                    else
+                        res.status(404).send('Not found')
+                }).catch((e) => {
+                    res.status(500).send(e)
+                })
+            })
+
+            ex.get('/analysis/largestTrialForSource/:id', (req, res) => {
+                let id = req.params.id
+                FactoryDatabase.findLargestTrialOfSource(id).then((s) => {
+                    if (s)
+                        res.status(200).send(s)
+                    else
+                        res.status(404).send('Not found')
+                })
+            })
+
+            // need a path for...
+            /*
+            * 1. Check if a Source has been submitted and saved yet
+            * 2. Retrieve the most complete dataset for a Source (add to normal query functionality)
+            * 3. Retrieve a summary of the largest dataset for a Source
+            * */
+
             ex.listen(port, () => {
                 console.log(`Server instance started on port ${port}`)
             })

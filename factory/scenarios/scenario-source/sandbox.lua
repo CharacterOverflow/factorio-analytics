@@ -61,7 +61,6 @@ local lElecMap = {};
 
 local draw_bp = function(bp)
 
-    --build_blueprint_from_string(bp, surfaceRef, forceRef, offset)
     local s = game.get_surface('nauvis');
     local f = game.forces['bench']
     f.research_all_technologies();

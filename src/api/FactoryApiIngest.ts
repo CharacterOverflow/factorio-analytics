@@ -52,10 +52,10 @@ export interface ITrialIngest {
     recordSystem?: boolean
 
     // name of the trial
-    name: string
+    name?: string
 
     // description of the trial
-    desc: string
+    desc?: string
 }
 
 // Template of what every single 'post' request should look like in the body here
@@ -83,15 +83,16 @@ export class FactoryApiExecutionRequest {
 
     // A always-unique identifier for the trial going to be run. NOT the same as trialID
     @PrimaryGeneratedColumn('uuid')
-    executionId: string;
+    execution_id: string;
 
-    @Column()
+    @Column({name: 'trial_id'})
     trialId: string;
 
-    @Column()
+    @Column({name: 'logged_at'})
     loggedAt: Date;
 
     @Column({
+        name: 'allocated_at',
         nullable: true
     })
     allocatedAt: Date;
@@ -102,9 +103,11 @@ export class FactoryApiExecutionRequest {
 export class FactoryApiExecutionStatus {
 
     @PrimaryColumn()
-    executionId: string
+    execution_id: string
 
-    @Column()
+    @Column({
+        name: 'logged_at'
+    })
     loggedAt: Date
 
     @Column()
