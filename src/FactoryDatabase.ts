@@ -34,6 +34,7 @@ export class FactoryDatabase {
             // use the specified datasources instead of the default sqlite one
             // first source added is made default
             for (let ds of datasources) {
+                Logging.log('info', `Configuring datasource ${ds.name} (${(ds as any)?.host}:${(ds as any)?.port})`)
                 await FactoryDatabase.configureDataSource(ds.name, ds)
             }
         } else {

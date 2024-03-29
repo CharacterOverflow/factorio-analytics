@@ -10,6 +10,7 @@ ARG BOX64_VERSION=v0.2.4
 ARG VARIANT=Query
 
 ENV VARIANT="$VARIANT" \
+    PORT=3001 \
     PG_CACHE_HOST=127.0.0.1 \
     PG_CACHE_PORT=5432 \
     PG_CACHE_USER=factory \
@@ -25,18 +26,18 @@ ENV VARIANT="$VARIANT" \
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 RUN set -ox pipefail \
     && mkdir -p /opt /factorio \
+    && mkdir /opt/factorio \
     && apt-get -q update \
-    && chmod ugo=rwx /opt/factorio \
     && DEBIAN_FRONTEND=noninteractive apt-get -qy install ca-certificates curl jq pwgen xz-utils procps --no-install-recommends \
-    && apt install nodejs git -y \
+    && chmod ugo=rwx /opt/factorio \
+    && apt install npm nodejs git -y \
     && git clone https://github.com/CharacterOverflow/factorio-analytics /opt/factorio \
     && cd /opt/factorio \
+    && npm install -g typescript \
     && npm install \
     && tsc \
-    && rm -rf /var/lib/apt/lists/* \
-    && addgroup --system --gid "$PGID" "$GROUP" \
-    && adduser --system --uid "$PUID" --gid "$PGID" --no-create-home --disabled-password --shell /bin/sh "$USER" \
+    && rm -rf /var/lib/apt/lists/*
 
 EXPOSE $PORT/tcp $PORT/udp
 WORKDIR /opt/factorio
-ENTRYPOINT ["node", "dist/scripts/run${VARIANT}Backend.js"]
+ENTRYPOINT ["node", "dist/scripts/runWorkerBackend.js"]
