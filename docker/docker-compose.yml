@@ -7,8 +7,10 @@ services:
     environment:
       - PG_CACHE_HOST=6.6.6.212
       - PG_CACHE_PORT=5432
-      - FACTORIO_USER=CharacterOverflow
-      - FACTORIO_TOKEN=27ede956f491a45426cf7d0c6e3c04
+      - PG_STORAGE_HOST=6.6.6.168
+      - PG_STORAGE_PORT=5432
+      - FACTORIO_USER=[User]
+      - FACTORIO_TOKEN=[Token]
       - NAME=DockerTest
       - VARIANT=Worker
-    network_mode: host
+    network_mode: bridge

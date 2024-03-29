@@ -11,10 +11,14 @@ ARG VARIANT=Query
 
 ENV VARIANT="$VARIANT" \
     PORT=3001 \
-    PG_CACHE_HOST=127.0.0.1 \
+    PG_CACHE_HOST=0.0.0.0 \
     PG_CACHE_PORT=5432 \
     PG_CACHE_USER=factory \
     PG_CACHE_PASS=factory \
+    PG_STORAGE_HOST=0.0.0.0 \
+    PG_STORAGE_PORT=5432 \
+    PG_STORAGE_USER=factory \
+    PG_STORAGE_PASS=factory \
     FACTORIO_USER=username \
     FACTORIO_TOKEN=token \
     AWS_ACCESS_ID=access_id \
@@ -40,4 +44,4 @@ RUN set -ox pipefail \
 
 EXPOSE $PORT/tcp $PORT/udp
 WORKDIR /opt/factorio
-ENTRYPOINT ["node", "dist/scripts/runWorkerBackend.js"]
+ENTRYPOINT ["/bin/bash", "-c", "cd /opt/factorio && node dist/scripts/run${VARIANT}Backend.js"]
