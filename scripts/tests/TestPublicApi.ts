@@ -1,6 +1,6 @@
 import path from "path";
 import * as fs from "fs-extra";
-import {FactorioAnalyticsApi} from "../src/FactorioAnalyticsApi";
+import {FactorioAnalyticsApi} from "../../src/FactorioAnalyticsApi";
 
 require('dotenv').config();
 
@@ -33,8 +33,8 @@ async function main() {
 
     // submit a short trial
     let shortTrial = await FactorioAnalyticsApi.submitTrial({
-        name: '45spm_base 3_27_2024_short',
-        desc: 'Basic base blueprint - short test. 18k ticks, 60 tick interval, only item data',
+        //TEST GENERATING NAME FOR TRIAL name: '45spm_base 3_27_2024_short',
+        //desc: 'Basic base blueprint - short test. 18k ticks, 60 tick interval, only item data',
         source: source,
         length: 36000,
         tickInterval: 60,
@@ -86,7 +86,7 @@ async function main() {
 }
 
 main().then(async (t) => {
-    console.log('Finished running miscTesting.ts');
+    console.log('Finished running TestPublicApi.ts');
 }).catch((e) => {
     console.error(e);
 })

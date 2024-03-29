@@ -170,7 +170,6 @@ export class FactoryApiIngestServer {
                     // handle modlist
                 } else if (body?.variant === 'trial') {
                     // handle trial
-                    // #TODO implement this, add new execution request as well
                     let er = new FactoryApiExecutionRequest()
                     let tin = body.trial as ITrialIngest
                     if (tin && tin?.source) {
@@ -183,12 +182,14 @@ export class FactoryApiIngestServer {
                             })
                             FactoryDatabase.saveSource(s).then((s) => {
                                 tin.source = s.id
+                                // create the trial we are going to run based on the settings here
+                                // NOTE - the defaults here should be suitable for MOST cases
                                 let trial = new Trial({
                                     source: s,
-                                    length: body.trial.length ?? 36000,
-                                    tickInterval: body.trial.tickInterval ?? 300,
+                                    length: body.trial.length ?? Trial.timeToTicks(15),
+                                    tickInterval: body.trial.tickInterval ?? Trial.secondsToTicks(5),
                                     initialBots: 200,
-                                    recordItems: body.trial.recordItems ?? false,
+                                    recordItems: body.trial.recordItems ?? true,
                                     recordElectric: body.trial.recordElectric ?? false,
                                     recordCircuits: body.trial.recordCircuit ?? false,
                                     recordPollution: body.trial.recordPollution ?? false,

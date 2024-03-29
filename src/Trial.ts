@@ -231,6 +231,26 @@ export class Trial implements ITrial {
             return undefined
     }
 
+    static ticksToSeconds(ticks: number): number {
+        return ticks / 60
+    }
+
+    static ticksToMinutes(ticks: number): number {
+        return ticks / 3600
+    }
+
+    static minutesToTicks(minutes: number): number {
+        return minutes * 3600
+    }
+
+    static secondsToTicks(seconds: number): number {
+        return seconds * 60
+    }
+
+    static timeToTicks(minutes: number, seconds: number = 0): number {
+        return (this.minutesToTicks(minutes) + this.secondsToTicks(seconds))
+    }
+
     constructor(params: ITrial = null) {
 
         // we allow no-param construction of any class - this helps with ORMs and type casting
@@ -261,9 +281,6 @@ export class Trial implements ITrial {
             this.source = Source.ensureObject(params.source)
         }
 
-        this.name = params.name;
-        this.desc = params.desc;
-
         // set the other data we need as well about the trial
         this.length = params.length ?? 7200;
 
@@ -272,17 +289,32 @@ export class Trial implements ITrial {
         if (params.initialBots)
             this.initialBots = params.initialBots;
 
-        this.recordItems = (params.recordItems  != undefined) ? params.recordItems : false
+        this.recordItems = (params.recordItems != undefined) ? params.recordItems : false
 
         this.recordElectric = false // params.recordElectric;
 
         this.recordCircuits = (params.recordCircuits != undefined) ? params.recordCircuits : false
 
-        this.recordPollution = (params.recordPollution  != undefined) ? params.recordPollution : false
+        this.recordPollution = (params.recordPollution != undefined) ? params.recordPollution : false
 
-        this.recordSystem = (params.recordSystem  != undefined) ? params.recordSystem : false
+        this.recordSystem = (params.recordSystem != undefined) ? params.recordSystem : false
+
+        // set the name and desc. Otherwise, will be generated based on settings
+        if (params.name)
+            this.name = params.name
+        else {
+            this.name = `Trial of BPLength ${this.source.text.length} for [${this.recordItems ? 'I' : ''}${this.recordElectric ? 'E' : ''}${this.recordCircuits ? 'C' : ''}${this.recordPollution ? 'P' : ''}${this.recordSystem ? 'S' : ''}]`
+        }
+        if (params.desc)
+            this.desc = params.desc
+        else {
+            this.desc = `[${this.recordItems ? 'I' : ''}${this.recordElectric ? 'E' : ''}${this.recordCircuits ? 'C' : ''}${this.recordPollution ? 'P' : ''}${this.recordSystem ? 'S' : ''}]
+            In-Game Length ${Trial.ticksToSeconds(this.length)} Interval ${Trial.ticksToSeconds(this.tickInterval)}`
+        }
 
         this.stage = "new"
+
+
     }
 
     setStage(stage: TTrialStages) {
