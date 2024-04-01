@@ -68,7 +68,7 @@ export class FactoryApiWorker {
                     FactoryApiExecutionRequest,
                     FactoryApiExecutionStatus
                 ]
-            }, {
+            }, /*{
                 name: 'storage',
                 type: 'postgres',
                 host: process.env.PG_STORAGE_HOST,
@@ -89,7 +89,7 @@ export class FactoryApiWorker {
                     FactoryApiExecutionRequest,
                     FactoryApiExecutionStatus
                 ]
-            }
+            }*/
         ])
 
         // now that we're connected and have a working factory, we can start processing requests!

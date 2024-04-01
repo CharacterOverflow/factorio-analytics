@@ -17,6 +17,14 @@ import cluster from 'cluster'
 import {Source} from "../Source";
 import {FactoryDatabase} from "../FactoryDatabase";
 import {Trial} from "../Trial";
+import {ModList} from "../ModList";
+import {
+    GameFlowCircuitRecord,
+    GameFlowElectricRecord,
+    GameFlowItemRecord,
+    GameFlowPollutionRecord,
+    GameFlowSystemRecord
+} from "../Dataset";
 
 export interface ITrialIngest {
 
@@ -127,7 +135,8 @@ export class FactoryApiIngestServer {
 
     //static server: http.Server
 
-    static startServer(port: number = 3001, instances: number = 8) {
+    static async startServer(port: number = 3001, instances: number = 8) {
+
         if (cluster.isPrimary) {
             console.log(`Primary server starting on port ${port} with ${instances} instances`)
             for (let i = 0; i < instances; i++) {
@@ -139,6 +148,51 @@ export class FactoryApiIngestServer {
             })
 
         } else {
+            await FactoryDatabase.initialize([
+                {
+                    name: 'cache',
+                    type: 'postgres',
+                    host: process.env.PG_CACHE_HOST,
+                    port: parseInt(process.env.PG_CACHE_PORT),
+                    username: process.env.PG_CACHE_USER,
+                    password: process.env.PG_CACHE_PASS,
+                    poolSize: 4,
+                    synchronize: true,
+                    entities: [
+                        Trial,
+                        Source,
+                        ModList,
+                        GameFlowItemRecord,
+                        GameFlowElectricRecord,
+                        GameFlowCircuitRecord,
+                        GameFlowPollutionRecord,
+                        GameFlowSystemRecord,
+                        FactoryApiExecutionRequest,
+                        FactoryApiExecutionStatus
+                    ]
+                }, /*{
+                    name: 'storage',
+                    type: 'postgres',
+                    host: process.env.PG_STORAGE_HOST,
+                    port: parseInt(process.env.PG_STORAGE_PORT),
+                    username: process.env.PG_STORAGE_USER,
+                    password: process.env.PG_STORAGE_PASS,
+                    poolSize: 4,
+                    synchronize: true,
+                    entities: [
+                        Trial,
+                        Source,
+                        ModList,
+                        GameFlowItemRecord,
+                        GameFlowElectricRecord,
+                        GameFlowCircuitRecord,
+                        GameFlowPollutionRecord,
+                        GameFlowSystemRecord,
+                        FactoryApiExecutionRequest,
+                        FactoryApiExecutionStatus
+                    ]
+                }*/
+            ])
             const ex = express();
             ex.use(express.json())
             ex.use(urlencoded({extended: true, limit: '100mb'}))

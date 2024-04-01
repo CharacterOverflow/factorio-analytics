@@ -1,4 +1,3 @@
-
 import {FactoryApiWorker} from "../src/api/FactoryApiWorker";
 
 require('dotenv').config();
