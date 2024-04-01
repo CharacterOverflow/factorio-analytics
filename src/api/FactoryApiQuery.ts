@@ -114,7 +114,7 @@ export class FactoryApiQueryServer {
                         case 'status':
                             FactoryDatabase.FactoryDB.getRepository('FactoryApiExecutionStatus').findOne({
                                 where: {
-                                    executionId: id
+                                    execution_id: id
                                 }
                             }).then((s) => {
                                 if (s)
