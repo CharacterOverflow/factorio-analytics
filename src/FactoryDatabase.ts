@@ -365,5 +365,17 @@ export class FactoryDatabase {
             throw new Error('No trial has been run for this source')
     }
 
+    static async findStatusAndTrialOfExecution(execId: string): Promise<any> {
+        const q = 'select fs.*, fr.trial_id, fr.allocated_at\n' +
+            'from public.factory_status fs\n' +
+            '         inner join public.factory_request fr ON (fr.execution_id = CAST(fs.execution_id as uuid))\n' +
+            'where fs.execution_id = $1 '
+        const r = await FactoryDatabase.FactoryDB.query(q, [execId])
+        if (r && r.length == 1)
+            return r[0]
+        else
+            throw new Error('No trial has been run for this source')
+    }
+
 
 }

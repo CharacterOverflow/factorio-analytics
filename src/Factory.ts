@@ -73,7 +73,6 @@ export interface IFactoryStartParams {
 * */
 export class Factory {
 
-
     public static _initStatus: string = 'not-started';
     public static get initStatus() {
         return Factory._initStatus;
@@ -84,7 +83,6 @@ export class Factory {
         if (Factory.onStatusChange)
             Factory.onStatusChange(val);
     }
-
 
     static async initialize(params: IFactoryStartParams) {
 
@@ -284,8 +282,6 @@ export class Factory {
         // trial must be prepared before we can compile it - if not, prepare it
         if (t.stage !== 'prepared')
             await Factory.prepareTrial(t)
-
-
 
         // we do the executable check inside IF so that savegames don't throw an error
         // savegames as a whole dont need to be compiled, so we just skip this step

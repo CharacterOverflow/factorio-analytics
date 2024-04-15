@@ -42,9 +42,26 @@ Body Params:
 
 The response for creating a source is an ID representing that source.
 
-NOTE: The name/descriptions of blueprints are stripped from the source to ensure uniqueness. ONLY THE ENTITIES AND TILES ARE SAVED
+NOTES: 
+- The name/descriptions/tags of blueprints are stripped from the source to ensure uniqueness. ONLY THE ENTITIES AND TILES ARE SAVED
+- If the blueprint string would not produce any results anyways (lack of resources, no infinity chests OR no infinity pipes OR no combinators, etc), it will return an error (BAD REQUEST)
+  - Remember - this process will only simulate what you give it in-game for a set amount of time
+  - If you need resources to benchmark, it is REQUIRED to add infinity chests and/or infinity pipes
+  - If you are testing only circuits, it is allowable to not have any infinity-[objects]
 
 The response for creating a trial is an object that contains the executionID and trialID
+
+#### /quickSubmit (POST)
+The rest of the params for 'quickSubmit' should be contained in the body of the request
+
+This path is a shortcut for submitting a blueprint with a set of default parameters for the trial. The trial is
+automatically queued up for execution.
+
+Body Params:
+- blueprintStr: string (required)
+  - The blueprint string of the source
+- modList: string[]
+  - An array of mod names that are required for the blueprint
 
 #### /query/:id/:variant (GET)
 All parameters here are contained in the URL -  **no query parameters are used**.

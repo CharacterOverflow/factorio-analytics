@@ -78,7 +78,7 @@ export class FactoryApiIngest {
     source?: string
 
     // ONLY ALLOWED PARAM FOR MODLIST IS ARRAY OF STRINGS OF MODS_VERSIONS - no tags or descriptions
-    modlist?: string[]
+    modList?: string[]
 
     // TRIAL PARAMS HERE - AFTER CREATION, IMMEDIATELY GETS RUN WHEN POSSIBLE
     trial?: ITrialIngest
@@ -125,6 +125,30 @@ export class FactoryApiExecutionStatus {
         nullable: true
     })
     success: boolean
+}
+
+/*
+* This class will represent a 'quick' source submission and trial.
+* Returned will be the source ID and execution ID of the submission.
+* Ideal for most basic things you want tested. For higher detail / custom params, use the FactoryApiIngest class
+* */
+export class FactoryApiIngestQuick {
+    // Blueprint string. only thing allowed!
+    blueprintStr?: string
+
+    // Modlist string list.
+    modList?: string[]
+
+    constructor(bpStr: string, modList: string[] = []) {
+        if (!bpStr)
+            throw new Error('No blueprint string provided')
+        if (!Source.isBlueprintString(bpStr))
+            throw new Error('Invalid blueprint provided - must be a blueprint string!')
+
+        this.blueprintStr = bpStr
+        this.modList = modList
+    }
+
 }
 
 // STATIC CLASS - used to set up the web server and functionality to start/stop the cluster.
@@ -201,6 +225,43 @@ export class FactoryApiIngestServer {
                 res.status(200).send('OK')
             })
 
+            ex.post('/quickSubmit', (req, res) => {
+                let body = req.body as FactoryApiIngestQuick
+                if (Source.isBlueprintString(body.blueprintStr)) {
+                    let s = new Source({
+                        text: Source.anonymizeBlueprintString(body.blueprintStr),
+                        variant: 'blueprint',
+                        modList: new ModList({mods: body.modList})
+                    })
+                    FactoryDatabase.saveSource(s).then((s) => {
+                        let trial = new Trial({
+                            source: s,
+                            length: 36000,
+                            tickInterval: 300,
+                            initialBots: 200,
+                            recordItems: true,
+                            recordElectric: true,
+                            recordCircuits: true,
+                            recordPollution: true,
+                            recordSystem: true,
+                        })
+                        FactoryDatabase.saveTrial(trial, false).then((t) => {
+                            let er = new FactoryApiExecutionRequest()
+                            er.trialId = t.id
+                            er.loggedAt = new Date()
+                            FactoryDatabase.FactoryDB.getRepository('FactoryApiExecutionRequest').save(er).then((er) => {
+                                res.status(200).json(er)
+                            })
+                        }).catch((e) => {
+                            res.status(500).send(e)
+                        })
+                    }).catch((e) => {
+                        res.status(500).send(e)
+                    })
+                } else
+                    res.status(400).send('Invalid blueprint string')
+            });
+
             ex.post('/submit', (req, res) => {
                 let body = req.body as FactoryApiIngest
                 if (body?.variant === 'source') {
@@ -228,7 +289,7 @@ export class FactoryApiIngestServer {
                     let tin = body.trial as ITrialIngest
                     if (tin && tin?.source) {
                         // if the source is over 40 characters and starts with 0e, make a source first
-                        if (tin?.source.length > 40 && tin?.source.startsWith('0e')) {
+                        if (Source.isBlueprintString(tin.source)) {
                             let bpStr = Source.anonymizeBlueprintString(tin.source)
                             let s = new Source({
                                 text: bpStr,

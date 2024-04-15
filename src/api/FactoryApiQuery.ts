@@ -112,11 +112,7 @@ export class FactoryApiQueryServer {
 
                     switch (variant) {
                         case 'status':
-                            FactoryDatabase.FactoryDB.getRepository('FactoryApiExecutionStatus').findOne({
-                                where: {
-                                    execution_id: id
-                                }
-                            }).then((s) => {
+                            FactoryDatabase.findStatusAndTrialOfExecution(id).then((s) => {
                                 if (s)
                                     res.status(200).send(s)
                                 else
@@ -239,8 +235,6 @@ export class FactoryApiQueryServer {
                 } catch (e) {
                     res.status(501).send(e)
                 }
-
-
             })
 
             ex.get('/check/:id', (req, res) => {

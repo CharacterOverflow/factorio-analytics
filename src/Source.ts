@@ -67,6 +67,14 @@ export class Source implements ISource {
     @ManyToOne(() => ModList)
     modList?: ModList
 
+    // rawId is the 'blueprint' string hashed WITHOUT any mods. Helps with querying
+    @Column({
+        name: 'bp_key',
+        nullable: false,
+        type: 'varchar'
+    })
+    bpKey: string;
+
     @Column({
         nullable: false,
         type: 'varchar'
@@ -118,7 +126,11 @@ export class Source implements ISource {
             // Whether it be savegame path or blueprint string, we need to hash it
             /// BUT, if it's a blueprint string, we first need to parse it and remove the icons, label, and description fields if they exist
             /// this will truly anonymize the source - then after we turn back into a blueprint string, we hash and save it
-            this.id = crypto.createHash('sha256').update(this.text).digest('hex');
+            /// 4/15 note - What if there's a modlist incorrectly uploaded with a source? Need to make modlist in the key as well
+            /// this could make it more difficult to query for a specific source if small mods are added.
+            //// Adding another field for 'raw_bp'
+            this.bpKey = crypto.createHash('sha256').update(this.text).digest('hex');
+            this.id = crypto.createHash('sha256').update(this.text + ( this?.modList?.mods ? this.modList.mods.join(',') : '')).digest('hex');
             return true;
         } else {
             // need to return false here - we are likely on the web!!
@@ -130,6 +142,12 @@ export class Source implements ISource {
         if (!this.tags.includes(tag)) {
             this.tags.push(tag);
         }
+    }
+
+    static isBlueprintString(bpStr: string): boolean {
+        if (!bpStr || typeof bpStr !== 'string')
+            return false
+        return (bpStr.length > 40 && bpStr.startsWith('0e'))
     }
 
     removeTag(tag: string) {

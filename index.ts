@@ -40,9 +40,15 @@ import {
 
 import {Source, ISource, SourceBlueprintDetails} from './src/Source'
 import { BlueprintChallenge } from './src/BlueprintChallenge';
-import { FactorioAnalyticsApi } from './src/FactorioAnalyticsApi';
+import { FactorioAnalyticsApi, TFactoryApiQueryVariant } from './src/FactorioAnalyticsApi';
+import { FactoryApiExecutionStatus, FactoryApiExecutionRequest, FactoryApiIngest, ITrialIngest } from './src/api/FactoryApiIngest';
 
 export {
+    TFactoryApiQueryVariant,
+    ITrialIngest,
+    FactoryApiIngest,
+    FactoryApiExecutionRequest,
+    FactoryApiExecutionStatus,
     FactorioAnalyticsApi,
     Factory,
     Logging,

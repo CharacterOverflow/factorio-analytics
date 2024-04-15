@@ -6,10 +6,6 @@ require('dotenv').config();
 
 async function main() {
 
-    /*
-    * #TODO
-    *   - Add more logging - use ai if anything, but log constatntlyyyy anything big that happens
-    * */
     const bpFile = '/home/overflow/Projects/factorio-analytics/factory/examples/45spm_base.bp'
     const bpStr = await fs.readFile(bpFile, 'utf8')
 
@@ -49,36 +45,38 @@ async function main() {
     console.log('Submitted trials:')
     console.table([longTrial, shortTrial])
 
-    let ltHandle = setInterval(async () => {
-        try {
-            let longTrialStatus = await FactorioAnalyticsApi.queryStatus(longTrial.execution_id)
-            if (longTrialStatus) {
-                console.log('Long trial status:')
-                console.table(longTrialStatus)
-                if (longTrialStatus.success != null) {
-                    clearInterval(ltHandle)
-                    longTrial = await FactorioAnalyticsApi.query('trial', longTrial.trialId)
-                }
-            }
-        } catch (e) {
-            console.log('Error querying long trial status:', e)
-        }
-    }, 2000)
-    let stHandle = setInterval(async () => {
-        try {
-            let shortTrialStatus = await FactorioAnalyticsApi.queryStatus(shortTrial.execution_id)
-            if (shortTrialStatus) {
-                console.log('Short trial status:')
-                console.table(shortTrialStatus)
-                if (shortTrialStatus?.success != null) {
-                    clearInterval(stHandle)
-                    shortTrial = await FactorioAnalyticsApi.query('trial', shortTrial.trialId)
-                }
-            }
-        } catch (e) {
-            console.log('Error querying short trial status:', e)
-        }
-    }, 2000)
+    // let ltHandle = setInterval(async () => {
+    //     try {
+    //         let longTrialStatus = await FactorioAnalyticsApi.queryStatus(longTrial.execution_id)
+    //         if (longTrialStatus) {
+    //             console.log('Long trial status:')
+    //             console.table(longTrialStatus)
+    //             if (longTrialStatus.success != null) {
+    //                 clearInterval(ltHandle)
+    //                 longTrial = await FactorioAnalyticsApi.query('trial', longTrial.trialId)
+    //             }
+    //         }
+    //     } catch (e) {
+    //         console.log('Error querying long trial status:', e)
+    //     }
+    // }, 2000)
+    let results = await FactorioAnalyticsApi.queryStatusOnTick(shortTrial.execution_id)
+    console.table(results);
+    // let stHandle = setInterval(async () => {
+    //     try {
+    //         let shortTrialStatus = await FactorioAnalyticsApi.queryStatus(shortTrial.execution_id)
+    //         if (shortTrialStatus) {
+    //             console.log('Short trial status:')
+    //             console.table(shortTrialStatus)
+    //             if (shortTrialStatus?.success != null) {
+    //                 clearInterval(stHandle)
+    //                 shortTrial = await FactorioAnalyticsApi.query('trial', shortTrial.trialId)
+    //             }
+    //         }
+    //     } catch (e) {
+    //         console.log('Error querying short trial status:', e)
+    //     }
+    // }, 2000)
 
     //let s = source.gridSize
 
