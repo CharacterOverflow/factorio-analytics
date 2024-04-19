@@ -24,6 +24,7 @@ export class FactoryDatabase {
             return FactoryDatabase.SourcesMap.get(FactoryDatabase.DefaultSource)
         else return undefined
     }
+
     static SourcesMap: Map<string, DataSource> = new Map<string, DataSource>();
     static DefaultSource: string;
 
@@ -95,6 +96,28 @@ export class FactoryDatabase {
         }
 
         Logging.log('info', `Datasource ${name} removed`)
+    }
+
+    static async checkIfTrialExists(sourceId: string, length: number, interval: number, recordItems: boolean = true, recordElectric: boolean = false, recordCircuits: boolean = true, recordPollution: boolean = true, recordSystem: boolean = true) {
+        Logging.log('info', `Checking if trial exists for source ${sourceId}`)
+        let ret = await FactoryDatabase.FactoryDB.getRepository(Trial).findOne({
+            where: {
+                source: {
+                    id: sourceId
+                },
+                length,
+                tickInterval: interval,
+                recordItems,
+                recordElectric,
+                recordCircuits,
+                recordPollution,
+                recordSystem
+            }
+        })
+        if (ret)
+            return ret.id
+        else
+            return null
     }
 
     static async deleteTrialData(trialId: string) {

@@ -219,7 +219,7 @@ export class FactoryApiIngestServer {
             ])
             const ex = express();
             ex.use(express.json())
-            ex.use(urlencoded({extended: true, limit: '100mb'}))
+            ex.use(urlencoded({extended: true, limit: '300mb'}))
 
             ex.get('/', (req, res) => {
                 res.status(200).send('OK')
@@ -231,9 +231,17 @@ export class FactoryApiIngestServer {
                     let s = new Source({
                         text: Source.anonymizeBlueprintString(body.blueprintStr),
                         variant: 'blueprint',
-                        modList: new ModList({mods: body.modList})
+                        modList: body.modList ? new ModList({mods: body.modList}) : undefined
                     })
-                    FactoryDatabase.saveSource(s).then((s) => {
+                    FactoryDatabase.saveSource(s).then(async (s) => {
+                        // first, run a query to see if we've already run this default trial. If we have, just return the trial ID
+                        let r = await FactoryDatabase.checkIfTrialExists(s.id, 36000, 300, true, false, true, true, true)
+                        if (r) {
+                            res.status(200).json({
+                                trialId: r
+                            })
+                            return;
+                        }
                         let trial = new Trial({
                             source: s,
                             length: 36000,
