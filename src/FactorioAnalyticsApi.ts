@@ -1,7 +1,7 @@
 import {
     FactoryApiExecutionRequest,
     FactoryApiExecutionStatus,
-    FactoryApiIngest,
+    FactoryApiIngest, FactoryApiIngestQuick,
     ITrialIngest
 } from "./api/FactoryApiIngest";
 import axios from "axios";
@@ -82,6 +82,18 @@ export class FactorioAnalyticsApi {
             trial: trialParams
         }
         return await FactorioAnalyticsApi.submit(params)
+    }
+
+    static async submitQuick(bpStr: string, modList: string[] = []): Promise<FactoryApiExecutionRequest> {
+        const params: FactoryApiIngestQuick = {
+            blueprintStr: bpStr,
+            modList: modList ? modList : undefined
+        }
+        const resp = await axios.post('https://api.factorioanalytics.com/quickSubmit', params);
+        if (resp.status === 200)
+            return resp.data
+        else
+            throw new Error('Failed to submit request (quick)')
     }
 
     static async submitModList(mods: string[]) {
