@@ -65,6 +65,10 @@ ENV values that can be set...
     - Version of Factorio to download (if applicable). Defaults to latest stable version
 - `FACTORIO_DL_TIMEOUT`
     - After how long a download should be force-stopped - both mods and game download itself
+- 'PG_CACHE_HOST'
+- 'PG_CACHE_PORT'
+- 'PG_CACHE_USER'
+- 'PG_CACHE_PASS'
 
 ## Basic Explanation
 
@@ -129,6 +133,7 @@ await Factory.initialize({
     token: process.env.FACTORIO_TOKEN,
 
     // INSTALL DIR of factorio - inside this folder should be others like 'bin' and 'data'
+    // Can be left blank, will create and use a default install
     installDir: process.env.FACTORIO_INSTALL,
 
     // DATA DIR of factorio - inside this folder should be others like 'mods' and 'scenarios'. This is the user information about factorio
@@ -140,7 +145,7 @@ await Factory.initialize({
 });
 
 // OPTIONAL BELOW - include if you want these features
-// Initialize database - by default, uses SQLITE - will EVENTUALLY be able to  use postgresql as well
+// Initialize database - by default, uses SQLITE - see other examples for connection to Postgres
 await FactoryDatabase.initialize();
 
 // Initialize API backend
