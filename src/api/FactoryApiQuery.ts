@@ -261,6 +261,20 @@ export class FactoryApiQueryServer {
                         res.status(200).send(s)
                     else
                         res.status(404).send('Not found')
+                }).catch((e) => {
+                    res.status(500).send(e)
+                })
+            })
+
+            ex.get('/analysis/defaultTrialForSource/:id', (req, res) => {
+                let id = req.params.id;
+                FactoryDatabase.checkIfDefaultTrialExists(id).then((s) => {
+                    if (s)
+                        res.status(200).send(s)
+                    else
+                        res.status(404).send('Not found')
+                }).catch((e) => {
+                    res.status(500).send(e)
                 })
             })
 

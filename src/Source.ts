@@ -130,7 +130,7 @@ export class Source implements ISource {
             /// this could make it more difficult to query for a specific source if small mods are added.
             //// Adding another field for 'raw_bp'
             this.bpKey = crypto.createHash('sha256').update(this.text).digest('hex');
-            this.id = crypto.createHash('sha256').update(this.text + ( this?.modList?.mods ? this.modList.mods.join(',') : '')).digest('hex');
+            this.id = crypto.createHash('sha256').update(this.text + (this?.modList?.mods ? this.modList.mods.join(',') : '')).digest('hex');
             return true;
         } else {
             // need to return false here - we are likely on the web!!
@@ -249,6 +249,12 @@ export class SourceBlueprintDetails extends Source {
                 t.position.x -= minX
                 t.position.y -= minY
             }
+    }
+
+    hasRequiredEntities() {
+        // check to make sure we have at LEAST 1 entity of type 'infinity-chest','infinity-pipe', or 'combinator'. If not, return false
+        let e = _.find(this.data.entities, (e) => e.name == 'infinity-chest' || e.name == 'infinity-pipe' || e.name == 'combinator')
+        return (e != undefined)
     }
 
     data: BlueprintDetails;

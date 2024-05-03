@@ -14,7 +14,7 @@ import {Column, Entity, PrimaryColumn, PrimaryGeneratedColumn} from "typeorm";
 import express, {Express, urlencoded} from "express";
 import * as http from "http";
 import cluster from 'cluster'
-import {Source} from "../Source";
+import {Source, SourceBlueprintDetails} from "../Source";
 import {FactoryDatabase} from "../FactoryDatabase";
 import {Trial} from "../Trial";
 import {ModList} from "../ModList";
@@ -278,10 +278,12 @@ export class FactoryApiIngestServer {
                             text: Source.anonymizeBlueprintString(body.source),
                             variant: 'blueprint'
                         })
+                        let sd = new SourceBlueprintDetails(s)
+                        if (!sd.hasRequiredEntities())
+                            return res.status(400).send('Invalid blueprint string - must contain a combinator, infinity chest, or infinity pipe')
 
                         // save the source
                         FactoryDatabase.saveSource(s).then((s) => {
-
                             // respond with s.id
                             res.status(200).send(s.id)
                         })
@@ -303,8 +305,24 @@ export class FactoryApiIngestServer {
                                 text: bpStr,
                                 variant: 'blueprint'
                             })
-                            FactoryDatabase.saveSource(s).then((s) => {
+                            FactoryDatabase.saveSource(s).then(async (s) => {
                                 tin.source = s.id
+                                // 1 more step is needed here. Check to see if the trial requested already exists. If it does, return the trial ID
+                                let r = await FactoryDatabase.checkIfTrialExists(s.id,
+                                    body.trial.length ?? Trial.timeToTicks(15),
+                                    body.trial.tickInterval ?? Trial.secondsToTicks(5),
+                                    body.trial.recordItems ?? true,
+                                     body.trial.recordElectric ?? false,
+                                    body.trial.recordCircuit ?? true,
+                                    body.trial.recordPollution ?? true,
+                                     body.trial.recordSystem ?? true )
+
+                                if (r) {
+                                    res.status(200).json({
+                                        trialId: r
+                                    })
+                                    return;
+                                }
                                 // create the trial we are going to run based on the settings here
                                 // NOTE - the defaults here should be suitable for MOST cases
                                 let trial = new Trial({
@@ -314,9 +332,9 @@ export class FactoryApiIngestServer {
                                     initialBots: 200,
                                     recordItems: body.trial.recordItems ?? true,
                                     recordElectric: body.trial.recordElectric ?? false,
-                                    recordCircuits: body.trial.recordCircuit ?? false,
-                                    recordPollution: body.trial.recordPollution ?? false,
-                                    recordSystem: body.trial.recordSystem ?? false,
+                                    recordCircuits: body.trial.recordCircuit ?? true,
+                                    recordPollution: body.trial.recordPollution ?? true,
+                                    recordSystem: body.trial.recordSystem ?? true,
                                 })
                                 FactoryDatabase.saveTrial(trial, false).then((t) => {
                                     er.trialId = t.id
@@ -330,17 +348,36 @@ export class FactoryApiIngestServer {
                             })
                         } else {
                             // source is likely an ID - find it first, then create the trial
-                            FactoryDatabase.loadSource(tin.source).then((s) => {
+                            FactoryDatabase.loadSource(tin.source).then(async (s) => {
+                                tin.source = s.id
+                                // 1 more step is needed here. Check to see if the trial requested already exists. If it does, return the trial ID
+                                let r = await FactoryDatabase.checkIfTrialExists(s.id,
+                                    body.trial.length ?? Trial.timeToTicks(15),
+                                    body.trial.tickInterval ?? Trial.secondsToTicks(5),
+                                    body.trial.recordItems ?? true,
+                                    body.trial.recordElectric ?? false,
+                                    body.trial.recordCircuit ?? true,
+                                    body.trial.recordPollution ?? true,
+                                    body.trial.recordSystem ?? true )
+
+                                if (r) {
+                                    res.status(200).json({
+                                        trialId: r
+                                    })
+                                    return;
+                                }
+                                // create the trial we are going to run based on the settings here
+                                // NOTE - the defaults here should be suitable for MOST cases
                                 let trial = new Trial({
                                     source: s,
-                                    length: body.trial.length ?? 36000,
-                                    tickInterval: body.trial.tickInterval ?? 300,
+                                    length: body.trial.length ?? Trial.timeToTicks(15),
+                                    tickInterval: body.trial.tickInterval ?? Trial.secondsToTicks(5),
                                     initialBots: 200,
-                                    recordItems: body.trial.recordItems ?? false,
+                                    recordItems: body.trial.recordItems ?? true,
                                     recordElectric: body.trial.recordElectric ?? false,
-                                    recordCircuits: body.trial.recordCircuit ?? false,
-                                    recordPollution: body.trial.recordPollution ?? false,
-                                    recordSystem: body.trial.recordSystem ?? false,
+                                    recordCircuits: body.trial.recordCircuit ?? true,
+                                    recordPollution: body.trial.recordPollution ?? true,
+                                    recordSystem: body.trial.recordSystem ?? true,
                                 })
                                 FactoryDatabase.saveTrial(trial, false).then((t) => {
                                     er.trialId = t.id

@@ -120,6 +120,28 @@ export class FactoryDatabase {
             return null
     }
 
+    static async checkIfDefaultTrialExists(sourceId: string) {
+        Logging.log('info', `Checking if default trial exists for source ${sourceId}`)
+        let ret = await FactoryDatabase.FactoryDB.getRepository(Trial).findOne({
+            where: {
+                source: {
+                    id: sourceId
+                },
+                length: 54000,
+                tickInterval: 300,
+                recordItems: true,
+                recordElectric: false,
+                recordCircuits: true,
+                recordPollution: true,
+                recordSystem: true
+            }
+        })
+        if (ret)
+            return ret.id
+        else
+            return null
+    }
+
     static async deleteTrialData(trialId: string) {
         Logging.log('info', `Deleting trial data for trial ${trialId}`)
         await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).delete({
