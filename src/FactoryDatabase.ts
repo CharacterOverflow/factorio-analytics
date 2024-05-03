@@ -11,7 +11,6 @@ import {
     GameFlowPollutionRecord,
     GameFlowSystemRecord, IGameFlowRecordCounts, IGameFlowResults
 } from "./Dataset";
-import {FactorioApi} from "./FactorioApi";
 import {Logging} from "./Logging";
 import {PostgresConnectionOptions} from "typeorm/driver/postgres/PostgresConnectionOptions";
 import {BetterSqlite3ConnectionOptions} from "typeorm/driver/better-sqlite3/BetterSqlite3ConnectionOptions";

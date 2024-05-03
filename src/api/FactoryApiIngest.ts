@@ -11,8 +11,7 @@
 
 
 import {Column, Entity, PrimaryColumn, PrimaryGeneratedColumn} from "typeorm";
-import express, {Express, urlencoded} from "express";
-import * as http from "http";
+import express, {urlencoded} from "express";
 import cluster from 'cluster'
 import {Source, SourceBlueprintDetails} from "../Source";
 import {FactoryDatabase} from "../FactoryDatabase";
@@ -167,7 +166,7 @@ export class FactoryApiIngestServer {
                 cluster.fork();
             }
 
-            cluster.on('exit', (worker, code, signal) => {
+            cluster.on('exit', (worker) => {
                 console.log(`worker ${worker.process.pid} died`);
             })
 
