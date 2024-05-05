@@ -110,6 +110,20 @@ export class FactoryApiQueryServer {
                     let variant = req.params.variant
 
                     switch (variant) {
+                        case 'source_raw':
+                            FactoryDatabase.FactoryDB.getRepository('Source').findOne({
+                                where: {
+                                    id: id
+                                }
+                            }).then((s) => {
+                                if (s)
+                                    res.status(200).send(s.text)
+                                else
+                                    res.status(404).send('Not found')
+                            }).catch((e) => {
+                                res.status(500).send(e)
+                            })
+                            break;
                         case 'status':
                             FactoryDatabase.findStatusAndTrialOfExecution(id).then((s) => {
                                 if (s)
