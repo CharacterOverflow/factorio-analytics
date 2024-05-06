@@ -178,12 +178,18 @@ export class Source implements ISource {
 
     static anonymizeBlueprintString(bpStr: string): string {
         let bpOBj = Source.blueprintStringToObject(bpStr);
-        if (bpOBj?.blueprint?.label)
+        if (bpOBj?.blueprint?.label) {
             delete bpOBj.blueprint.label;
-        if (bpOBj?.blueprint?.description)
+            bpOBj.blueprint.label = 'Blueprint Submission';
+        }
+        if (bpOBj?.blueprint?.description) {
             delete bpOBj.blueprint.description;
-        if (bpOBj?.blueprint?.icons)
+            bpOBj.blueprint.description = 'This blueprint was submitted for benchmarking';
+        }
+        if (bpOBj?.blueprint?.icons) {
             delete bpOBj.blueprint.icons;
+            bpOBj.blueprint.icons = [];
+        }
         return Source.objectToBlueprintString(bpOBj);
     }
 
