@@ -30,6 +30,7 @@ import {
     GameFlowSystemRecord
 } from "../Dataset";
 import {FactoryApiExecutionRequest, FactoryApiExecutionStatus} from "./FactoryApiIngest";
+import path from "path";
 
 // STATIC CLASS - used to set up the web server and functionality to start/stop the cluster.
 // script will use this to start the server
@@ -99,21 +100,6 @@ export class FactoryApiQueryServer {
             const ex = express();
             ex.use(express.json())
             ex.use(urlencoded({extended: true, limit: '100mb'}))
-            const corsOptions = {
-                origin: ['https://api.factorioanalytics.com', 'https://www.factorioanalytics.com'],
-                optionsSuccessStatus: 200, // For legacy browser support
-                methods: "GET, POST" // allows different HTTP methods
-            }
-
-            ex.use(cors());
-
-            ex.use('/', (req, res) => {
-                express.static('factorio-analytics-app')
-            })
-
-            ex.get('/', (req, res) => {
-                res.status(200).send('OK')
-            })
 
             ex.get('/query/:id/:variant', (req, res) => {
                 try {
@@ -301,6 +287,16 @@ export class FactoryApiQueryServer {
                     res.status(500).send(e)
                 })
             })
+
+            const corsOptions = {
+                origin: ['https://api.factorioanalytics.com', 'https://www.factorioanalytics.com'],
+                optionsSuccessStatus: 200, // For legacy browser support
+                methods: "GET, POST" // allows different HTTP methods
+            }
+
+            ex.use(cors());
+
+            ex.use(express.static(path.join(process.cwd(), 'factorio-analytics-app')))
 
             // need a path for...
             /*
