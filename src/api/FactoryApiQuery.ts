@@ -15,7 +15,7 @@
 *
 * */
 
-
+import cors from 'cors'
 import express, {urlencoded} from "express";
 import cluster from 'cluster'
 import {FactoryDatabase} from "../FactoryDatabase";
@@ -99,6 +99,17 @@ export class FactoryApiQueryServer {
             const ex = express();
             ex.use(express.json())
             ex.use(urlencoded({extended: true, limit: '100mb'}))
+            const corsOptions = {
+                origin: ['https://api.factorioanalytics.com', 'https://www.factorioanalytics.com'],
+                optionsSuccessStatus: 200, // For legacy browser support
+                methods: "GET, POST" // allows different HTTP methods
+            }
+
+            ex.use(cors());
+
+            ex.use('/', (req, res) => {
+                express.static('factorio-analytics-app')
+            })
 
             ex.get('/', (req, res) => {
                 res.status(200).send('OK')
