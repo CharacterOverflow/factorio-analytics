@@ -244,7 +244,7 @@ export class FactoryApiIngestServer {
                         let trial = new Trial({
                             source: s,
                             length: Trial.timeToTicks(15),
-                            tickInterval: Trial.secondsToTicks(5),
+                            tickInterval: Trial.secondsToTicks(1),
                             initialBots: 200,
                             recordItems: true,
                             recordElectric: false,
@@ -309,7 +309,7 @@ export class FactoryApiIngestServer {
                                 // 1 more step is needed here. Check to see if the trial requested already exists. If it does, return the trial ID
                                 let r = await FactoryDatabase.checkIfTrialExists(s.id,
                                     tin.length ?? Trial.timeToTicks(15),
-                                    tin.tickInterval ?? Trial.secondsToTicks(5),
+                                    tin.tickInterval ?? Trial.secondsToTicks(1),
                                     tin.recordItems ?? true,
                                     tin.recordElectric ?? false,
                                     tin.recordCircuit ?? true,
@@ -327,7 +327,7 @@ export class FactoryApiIngestServer {
                                 let trial = new Trial({
                                     source: s,
                                     length: body.trial.length ?? Trial.timeToTicks(15),
-                                    tickInterval: body.trial.tickInterval ?? Trial.secondsToTicks(5),
+                                    tickInterval: body.trial.tickInterval ?? Trial.secondsToTicks(1),
                                     initialBots: 200,
                                     recordItems: body.trial.recordItems ?? true,
                                     recordElectric: body.trial.recordElectric ?? false,
@@ -352,7 +352,7 @@ export class FactoryApiIngestServer {
                                 // 1 more step is needed here. Check to see if the trial requested already exists. If it does, return the trial ID
                                 let r = await FactoryDatabase.checkIfTrialExists(s.id,
                                     body.trial.length ?? Trial.timeToTicks(15),
-                                    body.trial.tickInterval ?? Trial.secondsToTicks(5),
+                                    body.trial.tickInterval ?? Trial.secondsToTicks(1),
                                     body.trial.recordItems ?? true,
                                     body.trial.recordElectric ?? false,
                                     body.trial.recordCircuit ?? true,
@@ -370,7 +370,7 @@ export class FactoryApiIngestServer {
                                 let trial = new Trial({
                                     source: s,
                                     length: body.trial.length ?? Trial.timeToTicks(15),
-                                    tickInterval: body.trial.tickInterval ?? Trial.secondsToTicks(5),
+                                    tickInterval: body.trial.tickInterval ?? Trial.secondsToTicks(1),
                                     initialBots: 200,
                                     recordItems: body.trial.recordItems ?? true,
                                     recordElectric: body.trial.recordElectric ?? false,
