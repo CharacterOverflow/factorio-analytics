@@ -99,7 +99,7 @@ export class FactoryApiQueryServer {
             ])
             const ex = express();
             //trust proxy
-            ex.set('trust proxy', true)
+            //ex.set('trust proxy', true)
             ex.use(express.json())
             ex.use(urlencoded({extended: true, limit: '100mb'}))
 
@@ -107,12 +107,15 @@ export class FactoryApiQueryServer {
             const corsOptions = {
                 origin: ['https://api.factorioanalytics.com', 'https://www.factorioanalytics.com'],
                 optionsSuccessStatus: 200, // For legacy browser support
-                methods: "GET, POST" // allows different HTTP methods
+                methods: "GET, POST", // allows different HTTP methods
+                mimeTypes: "application/json, application/javascript",
             }
 
-            ex.use(cors());
+            //ex.use(cors());
+            // allow all mime types
+            ex.use(cors(corsOptions));
 
-            ex.use(express.static(path.join(process.cwd(), 'factorio-analytics-app')))
+            ex.use(express.static(path.join(process.cwd(), 'public')))
 
             ex.get('/query/:id/:variant', (req, res) => {
                 try {
