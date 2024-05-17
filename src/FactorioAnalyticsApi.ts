@@ -125,27 +125,42 @@ export class FactorioAnalyticsApi {
 
     static async queryItemData(id: string): Promise<IGameFlowItemTick[]> {
         const resp = await FactorioAnalyticsApi.query('data_item', id)
-        return resp as IGameFlowItemTick[]
+        if (resp?.data) {
+            return resp.data as IGameFlowItemTick[]
+        } else
+            throw new Error('Failed to query item data')
     }
 
     static async queryElectricData(id: string): Promise<IGameFlowElectricTick[]> {
         const resp = await FactorioAnalyticsApi.query('data_electric', id)
-        return resp as IGameFlowElectricTick[]
+        if (resp?.data) {
+            return resp.data as IGameFlowElectricTick[]
+        } else
+            throw new Error('Failed to query electric data')
     }
 
     static async queryCircuitData(id: string): Promise<IGameFlowCircuitTick[]> {
         const resp = await FactorioAnalyticsApi.query('data_circuit', id)
-        return resp as IGameFlowCircuitTick[]
+        if (resp?.data) {
+            return resp.data as IGameFlowCircuitTick[]
+        } else
+            throw new Error('Failed to query circuit data')
     }
 
     static async queryPollutionData(id: string): Promise<IGameFlowPollutionTick[]> {
         const resp = await FactorioAnalyticsApi.query('data_pollution', id)
-        return resp as IGameFlowPollutionTick[]
+        if (resp?.data) {
+            return resp.data as IGameFlowPollutionTick[]
+        } else
+            throw new Error('Failed to query pollution data')
     }
 
     static async querySystemData(id: string): Promise<IGameFlowSystemTick[]> {
         const resp = await FactorioAnalyticsApi.query('data_system', id)
-        return resp as IGameFlowSystemTick[]
+        if (resp?.data) {
+            return resp.data as IGameFlowSystemTick[]
+        } else
+            throw new Error('Failed to query system data')
     }
 
     static async queryAllData(id: string): Promise<{

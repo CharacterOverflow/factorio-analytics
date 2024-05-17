@@ -290,13 +290,23 @@ export class FactoryApiIngestServer {
                         res.status(400).send('No source provided')
                     // handle source
                 } else if (body?.variant === 'modlist') {
-                    res.status(400).send('Modlist not yet supported')
+                    res.status(400).send('Modlist not yet supported on Public API')
                     // handle modlist
                 } else if (body?.variant === 'trial') {
                     // handle trial
                     let er = new FactoryApiExecutionRequest()
                     let tin = body.trial as ITrialIngest
                     if (tin && tin?.source) {
+                        // First off, some initial filters.
+                        /// tickInterval can be anything so long as its over 60
+                        /// length is MAXIMUM of 216000 (1 hour), MINIMUM of 3600 (1 minute)
+                        /// instead of rejecting, we will still run the trial, just with changes to keep values in limits
+                        if (tin.tickInterval && tin.tickInterval < 60)
+                            tin.tickInterval = 60
+
+                        if (tin.length && tin.length > 216000)
+                            tin.length = 216000
+
                         // if the source is over 40 characters and starts with 0e, make a source first
                         if (Source.isBlueprintString(tin.source)) {
                             let bpStr = Source.anonymizeBlueprintString(tin.source)

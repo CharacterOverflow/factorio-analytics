@@ -1,10 +1,12 @@
 # factorio-analytics
 
-#### Version 2.0.3
+#### Version 3.2.0
 
 A package that gives you in-depth details and statistics normally only seen in-game.
 
 This library utilizes the factorio executable locally, so a copy of Factorio is also required.
+
+_And yes, it can use mods. With limits_
 
 ### Quick Links
 
@@ -50,25 +52,31 @@ You can either define these variables in your environment, or by creating a .env
 ENV values that can be set...
 
 - `FACTORIO_INSTALL`
-    - The directory to install Factorio in (or installation to use)
+  - The directory to install Factorio in (or installation to use)
 - `FACTORIO_USER`
-    - The USERNAME on factorio.com to use (NOT email)
+  - The USERNAME on factorio.com to use (NOT email)
 - `FACTORIO_TOKEN`
-    - The TOKEN found on your profile at https://www.factorio.com/profile
+  - The TOKEN found on your profile at https://www.factorio.com/profile
 - `FACTORIO_BUILD`
-    - The 'build' of Factorio to download, if applicable. Options are 'alpha' or 'headless'
+  - The 'build' of Factorio to download, if applicable. Options are 'alpha' or 'headless'
     - Headless is default, and includes no graphical assets. This is the default build for servers
-        - If you want to use advanced debugging on blueprints you use (load the test scenario), please use 'alpha'
-    - Alpha is the normal build of the game, and requires the game purchased to use! Login after launching is not
-      required
+  - If you want to use advanced debugging on blueprints you use (load the test scenario), please use 'alpha'
+  - Alpha is the normal build of the game, and requires the game purchased to use! Login after launching is not
+  required
 - `FACTORIO_VERSION`
-    - Version of Factorio to download (if applicable). Defaults to latest stable version
+  - Version of Factorio to download (if applicable). Defaults to latest stable version
 - `FACTORIO_DL_TIMEOUT`
-    - After how long a download should be force-stopped - both mods and game download itself
-- 'PG_CACHE_HOST'
-- 'PG_CACHE_PORT'
-- 'PG_CACHE_USER'
-- 'PG_CACHE_PASS'
+  - After how long a download should be force-stopped - both mods and game download itself
+- `PG_CACHE_HOST`
+  - The hostname of the Postgres database to connect to
+- `PG_CACHE_PORT`
+  - The port of the Postgres database to connect to
+- `PG_CACHE_USER`
+  - The username of the Postgres database to connect to
+- `PG_CACHE_PASS`
+  - The password of the Postgres database to connect to
+- `PG_STORAGE_<VAR>`
+  - These are not yet finished. Eventually, there will be the ability to store data long-term in a secondary database
 
 ## Basic Explanation
 

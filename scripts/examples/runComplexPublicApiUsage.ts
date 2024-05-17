@@ -22,10 +22,10 @@ async function main() {
 
     // make trials for each as well
     let trialA = await FactorioAnalyticsApi.submitTrial({
-        name: '1200spm_base',
+        name: '1200spm_base 2',
         desc: '1200spm base blueprint',
         source: sourceA,
-        length: 108000,
+        length: 10800,
         tickInterval: 300,
         recordItems: true,
         recordElectric: false,
@@ -34,10 +34,10 @@ async function main() {
         recordSystem: true
     })
     let trialB = await FactorioAnalyticsApi.submitTrial({
-        name: '45spm_base',
+        name: '45spm_base 2',
         desc: '45spm base blueprint',
         source: sourceB,
-        length: 108000,
+        length: 10800,
         tickInterval: 300,
         recordItems: true,
         recordElectric: false,
@@ -46,10 +46,10 @@ async function main() {
         recordSystem: true
     })
     let trialC = await FactorioAnalyticsApi.submitTrial({
-        name: 'smallbasev2',
+        name: 'smallbasev2 2',
         desc: 'Small base blueprint',
         source: sourceC,
-        length: 108000,
+        length: 10800,
         tickInterval: 300,
         recordItems: true,
         recordElectric: false,
@@ -66,8 +66,23 @@ async function main() {
 
     // now we can query trial data - grab them
     let tdA = await FactorioAnalyticsApi.queryTrial(trialA.trialId);
-    let tdB = await FactorioAnalyticsApi.queryTrial(trialB.trialId);
-    let tdC = await FactorioAnalyticsApi.queryTrial(trialC.trialId);
+    // let tdB = await FactorioAnalyticsApi.queryTrial(trialB.trialId);
+    // let tdC = await FactorioAnalyticsApi.queryTrial(trialC.trialId);
+    // lets do a test of the other functions for grabbing data for trial B
+    let itemDataB = await FactorioAnalyticsApi.queryItemData(trialB.trialId);
+    //let electricDataB = await FactorioAnalyticsApi.queryElectricData(trialB.trialId);
+    let circuitDataB = await FactorioAnalyticsApi.queryCircuitData(trialB.trialId);
+    let pollutionDataB = await FactorioAnalyticsApi.queryPollutionData(trialB.trialId);
+    let systemDataB = await FactorioAnalyticsApi.querySystemData(trialB.trialId);
+
+    // output a table showing the length of the above data objects
+    console.table({
+        itemDataB: itemDataB.length,
+        //electricDataB: electricDataB.length,
+        circuitDataB: circuitDataB.length,
+        pollutionDataB: pollutionDataB.length,
+        systemDataB: systemDataB.length
+    })
 
     // for the sake of testing, grab ALL data related to test A
     let dataA = await FactorioAnalyticsApi.query('data_all', trialA.trialId);

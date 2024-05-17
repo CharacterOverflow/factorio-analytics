@@ -8,77 +8,128 @@ but it'll also be far more responsive for your use case if you require massive a
 
 This being said, lets discuss the limits of the Public API
 - Maximum of 100 requests per 10 seconds
-- If under high load, trials that are too high 'cost' will return an error on trial creation
+- Minimum tickInterval of 60 (1 second)
+- Maximum trial length of 216000 (1 hour)
+- If under high load, you may just have to wait.
+  - I will be adding more queue and worker information soon
 
 That's all. **There are no other limits!**
 
-I intend to keep the public API free and functional so long as a trial to run a blueprint can be submitted and 'run' within 5 minutes. 
-
-If the queue gets too long and large blueprints are holding up the line - even with the Watchdog cancelling long-running trials - I will have to limit the length and size of trials that are allowed
+I intend to keep the public API free and functional. I want to collect as many functional blueprints as humanly possible, complete with all the data I can get.
 
 I want this to be a open and easily accessible API, to help encourage people to lean into their analytical side and test whatever they want - even if they lack the hardware to do so.
 
-## Usage
+---
+### `/query/:id/:variant`
 
-For the most part, there are 2 paths for the API:
+This is a GET method that retrieves various types of data based on the variant provided.
 
-#### /submit (POST)
-The rest of the params for 'submit' should be contained in the body of the request.
+### Request
 
-Body Params:
-- variant: string (required) 
-  - ['trial','source'] are valid options for now ('modlist' will be added later)
-- source: string
-  - The blueprint string of the source (if variant is 'source')
-- trial: ITrialIngest (params for the trial)
-  - source: string (ID)
-  - length: number
-  - tickInterval: number
-  - recordItems: boolean
-  - recordElectric: boolean
-  - recordCircuit: boolean
-  - recordPollution: boolean
-  - recordSystem: boolean
+- `id` (url parameter): The id to be used in data search,
+- `variant` (url parameter): The type of data to be retrieved, can be one of several values 
+  - ('source_raw', 'status', 'source', 'modlist', 'trial', 'data_item', 'data_electric', 'data_circuit', 'data_pollution', 'data_system', 'data_all').
 
-The response for creating a source is an ID representing that source.
+### Response
 
-NOTES: 
-- The name/descriptions/tags of blueprints are stripped from the source to ensure uniqueness. ONLY THE ENTITIES AND TILES ARE SAVED
-- If the blueprint string would not produce any results anyways (lack of resources, no infinity chests OR no infinity pipes OR no combinators, etc), it will return an error (BAD REQUEST)
-  - Remember - this process will only simulate what you give it in-game for a set amount of time
-  - If you need resources to benchmark, it is REQUIRED to add infinity chests and/or infinity pipes
-  - If you are testing only circuits, it is allowable to not have any infinity-[objects]
+- HTTP Status Codes
+  - 200 if the operation is successful,
+  - 404 if no data is found,
+  - 500 if an error occurred during executing the operation,
+  - 501 if an error occurred in the endpoint itself.
 
-The response for creating a trial is an object that contains the executionID and trialID
+- Body: Depending on the variant parameter, is one of the corresponding objects, or an error message.
 
-#### /quickSubmit (POST)
-The rest of the params for 'quickSubmit' should be contained in the body of the request
+---
+### `/check/:id`
 
-This path is a shortcut for submitting a blueprint with a set of default parameters for the trial. The trial is
-automatically queued up for execution.
+This is a GET method that checks if a source with the given id exists.
 
-Body Params:
-- blueprintStr: string (required)
-  - The blueprint string of the source
-- modList: string[]
-  - An array of mod names that are required for the blueprint
+### Request
 
-#### /query/:id/:variant (GET)
-All parameters here are contained in the URL -  **no query parameters are used**.
+- `id` (url parameter): The id of the source to check.
 
-URL Params:
-- variant: string (required)
-  - ['status','source','modlist','trial','data_item','data_electric','data_circuit','data_pollution','data_system', 'data_all'] are valid options for now
-- id: string (required)
-  - Depending on the variant, this can represent the executionID, trialID, sourceID, or modlistID
-  - executionID
-    - status
-  - trialID
-    - trial
-    - data_item
-    - data_electric
-    - data_circuit
-    - data_pollution
-    - data_system
-  - sourceID
-    - source
+### Response
+
+- HTTP Status Codes
+  - 200 if the operation is successful,
+  - 404 if no source is found with the given id,
+  - 500 if an error occurred during executing the operation.
+
+- Body: A boolean value indicating if the source exists or an error message.
+
+---
+### `/analysis/largestTrialForSource/:id`
+
+This is a GET method that retrieves the largest trial for a source.
+
+### Request
+
+- `id` (url parameter): The id of the source.
+
+### Response
+
+- HTTP Status Codes
+  - 200 if the operation is successful,
+  - 404 if there are no trials for the source,
+  - 500 if an error occurred during executing the operation.
+
+- Body: The data object for the largest trial or error message,
+
+---
+### `/analysis/defaultTrialForSource/:id`,
+
+This is a GET method that checks if a default trial exists for a source.
+
+The default trial definition may change over time, but it is generally run for 15 minutes polling every 5 seconds
+
+### Request
+
+- `id` (url parameter): The id of the source.
+
+### Response
+
+- HTTP Status Codes
+  - 200 if the operation is successful,
+  - 404 if there are no default trials for the source,
+  - 500 if an error occurred during executing the operation.
+
+- Body: Boolean value indicating if a default trial exists or an error message.
+
+---
+### `/quickSubmit`
+
+This is a POST method that accepts a blueprint string and creates a trial based on it.
+
+### Request
+
+- Body: An object that should adhere to the `FactoryApiIngestQuick` interface.
+  - `blueprintStr` (string): The blueprint string for the trial. It should be a valid blueprint string as per the `Source.isBlueprintString()` static method.
+  -  `modList` TEMPORARILY DISABLED (array of strings, optional): An array of strings specifying the mod list for the blueprint.
+
+### Response
+
+- HTTP Status Codes
+  - 200 if the operation is successful and returns an object with the `trialId`, or a `FactoryApiExecutionRequest` object.
+  - 400 if the provided blueprint string is invalid.
+  - 500 if an error occurred during executing the operation.
+
+---
+### `/submit`
+
+This is a POST method that accepts data of various types for processing.
+
+### Request
+
+- Body: An object that should adhere to the `FactoryApiIngest` interface. It should include a `variant` field which determines the type of the data provided. The variant can be 'source', 'trial', or 'modlist'.
+  - `variant` (string): The type of the data to be processed. Can be one of: `source` or `trial`
+  - `source` (string, required if variant is 'source'): The source data for the trial. Should be a valid blueprint string as per the `Source.isBlueprintString()` static method. Should contain a combinator, infinity chest, or infinity pipe.
+  - `modList`TEMPORARILY DISABLED (array of strings, required if variant is 'modlist'): An array of strings specifying the mod list for the blueprint.
+  - `trial` (object, required if variant is 'trial'): An object that should adhere to the `ITrialIngest` interface. It specifies details about the trial to be executed.
+
+### Response
+
+- HTTP Status Codes
+  - 200 if the operation is successful. Returns an object with the `trialId`, or a `FactoryApiExecutionRequest` object, or the source ID if the variant was 'source'.
+  - 400 if the provided data is invalid, incomplete, or the required variant is not supported yet.
+  - 500 if an error occurred during executing the operation.
