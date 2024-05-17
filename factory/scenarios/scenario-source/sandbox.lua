@@ -214,7 +214,7 @@ local runExports = function(tick)
             -- grab electric info from each pole - grouped by id
             local s = game.get_surface('nauvis');
             local elecMap = {};
-            local fe = s.find_entities_filtered { type = ['electric-pole','medium-electric-pole','big-electric-pole','substation'] };
+            local fe = s.find_entities_filtered { type = {'electric-pole','medium-electric-pole','big-electric-pole','substation'} };
 
             -- Map all pole's electric networks to their appropriate stats, no duplications
             for _, entity in ipairs(fe) do
