@@ -205,7 +205,13 @@ export class FactoryDatabase {
                     }),
                 }
             case 'electric':
-                throw new Error('Electric not yet supported')
+                return {
+                    data: await FactoryDatabase.FactoryDB.getRepository(GameFlowElectricRecord).find({
+                        where: {
+                            trial_id: trialId,
+                        }
+                    }),
+                }
             case 'circuit':
                 return {
                     data: await FactoryDatabase.FactoryDB.getRepository(GameFlowCircuitRecord).find({

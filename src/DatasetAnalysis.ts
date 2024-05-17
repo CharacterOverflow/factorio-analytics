@@ -1,6 +1,6 @@
 import {
     IGameFlow, IGameFlowCircuitResults,
-    IGameFlowCircuitTick, IGameFlowItemResults,
+    IGameFlowCircuitTick, IGameFlowElectricResults, IGameFlowElectricTick, IGameFlowItemResults,
     IGameFlowItemTick, IGameFlowPollutionResults,
     IGameFlowPollutionTick, IGameFlowResults, IGameFlowSystemResults,
     IGameFlowSystemTick,
@@ -359,6 +359,24 @@ export class DatasetAnalysis {
         //     result.averageConsByLabel[l] = totalCons / secondsLength;
         //     result.averageProdByLabel[l] = totalProd / secondsLength;
         // }
+        return result;
+    }
+
+    public static createSummaryOfElectricDataset(result: IGameFlowElectricResults, startTick: number = undefined, endTick: number = undefined): IGameFlowElectricResults {
+        Logging.log('info', `Creating summary of electric dataset of ${result.data.length} records`)
+        // passed in is the 'empty' version, with only data and trial defined
+        // we now need to do all the math here
+        if (!result)
+            throw new Error('Cannot create summary of electric dataset! Input is null');
+
+        // filter out data (ticks)
+        let tempDs: IGameFlowElectricTick[] = result.data
+        if (startTick != undefined && endTick != undefined) {
+            tempDs = DatasetAnalysis.createSubsetOfDataset(tempDs, startTick, endTick)
+        }
+        result.data = tempDs;
+
+        // need to implement more here for summary data - for now, just subsets if provided
         return result;
     }
 

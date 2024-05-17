@@ -65,7 +65,6 @@ export interface IGameFlowItemTick extends IGameFlow {
 }
 
 export interface IGameFlowElectricTick extends IGameFlow {
-    networkId?: number;
     cons: number;
     prod: number;
 }
@@ -177,13 +176,14 @@ export class GameFlowElectricRecord implements IGameFlowElectricTick {
     @PrimaryColumn({type: 'integer'})
     tick: number;
 
-    @PrimaryColumn({type: 'integer'})
-    networkId: number;
-
-    @Column()
+    @Column({
+        type: 'double precision'
+    })
     cons: number;
 
-    @Column()
+    @Column({
+        type: 'double precision'
+    })
     prod: number;
 
     constructor(params: IGameFlowElectricTick, trialId: string) {
@@ -193,9 +193,12 @@ export class GameFlowElectricRecord implements IGameFlowElectricTick {
         this.trial_id = trialId
         this.label = params.label;
         this.tick = params.tick;
-        this.networkId = params.networkId;
         this.cons = params.cons;
         this.prod = params.prod;
+    }
+
+    static fromRecords(records: IGameFlowElectricTick[], trialId: string): GameFlowElectricRecord[] {
+        return records.map(record => new GameFlowElectricRecord(record, trialId))
     }
 
 }

@@ -234,7 +234,7 @@ export class FactoryApiIngestServer {
                     })
                     FactoryDatabase.saveSource(s).then(async (s) => {
                         // first, run a query to see if we've already run this default trial. If we have, just return the trial ID
-                        let r = await FactoryDatabase.checkIfTrialExists(s.id, Trial.timeToTicks(15), Trial.secondsToTicks(5), true, false, true, true, true)
+                        let r = await FactoryDatabase.checkIfTrialExists(s.id, Trial.timeToTicks(15), Trial.secondsToTicks(5), true, true, true, true, true)
                         if (r) {
                             res.status(200).json({
                                 trialId: r
@@ -247,7 +247,7 @@ export class FactoryApiIngestServer {
                             tickInterval: Trial.secondsToTicks(5),
                             initialBots: 200,
                             recordItems: true,
-                            recordElectric: false,
+                            recordElectric: true,
                             recordCircuits: true,
                             recordPollution: true,
                             recordSystem: true,
@@ -321,7 +321,7 @@ export class FactoryApiIngestServer {
                                     tin.length ?? Trial.timeToTicks(15),
                                     tin.tickInterval ?? Trial.secondsToTicks(5),
                                     tin.recordItems ?? true,
-                                    tin.recordElectric ?? false,
+                                    tin.recordElectric ?? true,
                                     tin.recordCircuit ?? true,
                                     tin.recordPollution ?? true,
                                     tin.recordSystem ?? true)
@@ -340,7 +340,7 @@ export class FactoryApiIngestServer {
                                     tickInterval: body.trial.tickInterval ?? Trial.secondsToTicks(5),
                                     initialBots: 200,
                                     recordItems: body.trial.recordItems ?? true,
-                                    recordElectric: body.trial.recordElectric ?? false,
+                                    recordElectric: body.trial.recordElectric ?? true,
                                     recordCircuits: body.trial.recordCircuit ?? true,
                                     recordPollution: body.trial.recordPollution ?? true,
                                     recordSystem: body.trial.recordSystem ?? true,
@@ -364,7 +364,7 @@ export class FactoryApiIngestServer {
                                     body.trial.length ?? Trial.timeToTicks(15),
                                     body.trial.tickInterval ?? Trial.secondsToTicks(5),
                                     body.trial.recordItems ?? true,
-                                    body.trial.recordElectric ?? false,
+                                    body.trial.recordElectric ?? true,
                                     body.trial.recordCircuit ?? true,
                                     body.trial.recordPollution ?? true,
                                     body.trial.recordSystem ?? true)
@@ -383,7 +383,7 @@ export class FactoryApiIngestServer {
                                     tickInterval: body.trial.tickInterval ?? Trial.secondsToTicks(5),
                                     initialBots: 200,
                                     recordItems: body.trial.recordItems ?? true,
-                                    recordElectric: body.trial.recordElectric ?? false,
+                                    recordElectric: body.trial.recordElectric ?? true,
                                     recordCircuits: body.trial.recordCircuit ?? true,
                                     recordPollution: body.trial.recordPollution ?? true,
                                     recordSystem: body.trial.recordSystem ?? true,

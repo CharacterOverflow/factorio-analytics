@@ -207,7 +207,14 @@ export class FactoryApiQueryServer {
                             break;
                         case 'data_electric':
                             // do data_electric stuff
-                            res.status(400).send('Electric not yet supported')
+                            FactoryDatabase.loadDatasetRecords(id, 'electric').then((s) => {
+                                if (s)
+                                    res.status(200).send(s)
+                                else
+                                    res.status(404).send('Not found')
+                            }).catch((e) => {
+                                res.status(500).send(e)
+                            })
                             break;
                         case 'data_circuit':
                             // do data_circuit stuff

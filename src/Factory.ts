@@ -13,13 +13,13 @@ import {Trial} from "./Trial";
 import * as process from "process";
 import {ModList} from "./ModList";
 import {
-    GameFlowCircuitRecord,
+    GameFlowCircuitRecord, GameFlowElectricRecord,
     GameFlowItemRecord,
     GameFlowPollutionRecord,
     GameFlowSystemRecord,
     IGameFlowCircuitResults,
     IGameFlowCircuitTick,
-    IGameFlowElectricResults,
+    IGameFlowElectricResults, IGameFlowElectricTick,
     IGameFlowItemResults,
     IGameFlowItemTick,
     IGameFlowPollutionResults,
@@ -31,6 +31,13 @@ import _ from "lodash";
 import {Source} from "./Source";
 import {FactoryDatabase} from "./FactoryDatabase";
 import {DatasetAnalysis} from "./DatasetAnalysis";
+
+/*
+* TODO 5/16 URGENT
+*  There are cases where a item doesn't start being logged until a much later tick.
+* This means there ends up being less records of it, and on charts it appears to stop early.
+* I need to add padding to all records missing before they appear. How do we do this?
+* */
 
 /*
 * Listing out the various ENV settings that can be set...
@@ -469,6 +476,17 @@ export class Factory {
                 await electricDataset.parseData()
                 rObj.electric = electricDataset;
             }*/
+            if (t.recordElectric) {
+                Logging.log('info', {message: `Analyzing electric data for trial ${t.id}`});
+                rObj.electric = {
+                   data: await Factory.parseElectricDataFile(path.join(Factory.scriptOutputPath, 'data', t.dataFiles.electric), t),
+                   trial: t
+                }
+                if (saveToDB && t instanceof Trial)
+                   await FactoryDatabase.insertElectricRecords(rObj.electric.data as GameFlowElectricRecord[])
+                if (createSummaries && t instanceof Trial)
+                   rObj.electric = DatasetAnalysis.createSummaryOfElectricDataset(rObj.electric)
+            }
             if (t.recordCircuits) {
                 Logging.log('info', {message: `Analyzing circuit data for trial ${t.id}`});
                 rObj.circuits = {
@@ -605,7 +623,6 @@ export class Factory {
         }
         // lastly, if  our trial is a 'SavedTrial' type, we will make sure we convert all these records into SavedFlowRecords
         if (trial instanceof Trial && GameFlowItemRecord?.fromRecords) {
-
             results = GameFlowItemRecord.fromRecords(results, trial.id);
         }
         trial.itemMetadata = metadata;
@@ -613,7 +630,109 @@ export class Factory {
     }
 
     public static async parseElectricDataFile(filepath: string, trial: Trial) {
-        throw new Error('Electric data not implemented yet - need to analyze data output as it doesnt follow in-game values');
+        if (filepath == null)
+            throw new Error('Cannot parse electric data file! Filepath is null');
+
+        let raw = await fs.readFile(filepath, 'utf-8');
+
+        let results: IGameFlowElectricTick[] = [];
+        let lines = raw.split('\n');
+
+        for(let i = 0; i < lines.length - 1; i++) {
+            // each line is an array with 1 object inside, containing cons and prod
+            // cons and prod are both objects with double values for each field
+
+            // keep an active map of all items in this tick, adding information as needed
+            let elecMap = {};
+            let l = JSON.parse(lines[i]);
+
+            // for each key in cons, upsert data to itemMap
+            if (l && l[0]?.cons) {
+                let co = Object.keys(l[0].cons);
+                for (let c of co) {
+                    // the item record if it exists
+                    let ir: IGameFlowElectricTick = elecMap[c];
+
+                    if (ir) {
+                        // Update the cons value, as there is nothing else it can be.
+                        ir.cons = l[0].cons[c];
+                    } else {
+                        // No object record exists yet - create and set it
+                        elecMap[c] = {
+                            label: c,
+                            tick: (i + 1) * trial.tickInterval,
+                            cons: l[0].cons[c],
+                            prod: 0,
+                        } as IGameFlowElectricTick;
+                    }
+                }
+            }
+            if (l && l[0]?.prod) {
+                for (let p of Object.keys(l[0].prod)) {
+                    // the item record if it exists
+                    let ir: IGameFlowElectricTick = elecMap[p];
+
+                    if (ir) {
+                        // Update the cons value, as there is nothing else it can be.
+                        ir.prod = l[0].prod[p];
+                    } else {
+                        // No object record exists yet - create and set it
+                        elecMap[p] = {
+                            label: p,
+                            tick: (i + 1) * trial.tickInterval,
+                            cons: 0,
+                            prod: l[0].prod[p],
+                        } as IGameFlowElectricTick;
+                    }
+                }
+            }
+
+            // Now that the itemMap is populated, push all items to the results array for this tick. Convert all keys to an array, grabbing values from the map in a loop
+            let itemKeys = Object.keys(elecMap);
+            for (let ik of itemKeys) {
+                results.push(elecMap[ik]);
+            }
+        }
+
+        // for each item, calculate the average and total for  each item
+        let g = _.groupBy(results, 'label');
+        let kList = Object.keys(g);
+        let metadata = {
+            avg: {},
+            min: {},
+            max: {}
+        }
+        for (let i = 0; i < kList.length; i++) {
+
+            // sum / length (in minutes)
+            let elecData = g[kList[i]]
+            let secondsLength = trial.length / (60)
+            let totalCons = _.sumBy(elecData, 'cons')
+            let totalProd = _.sumBy(elecData, 'prod')
+            let minCons = _.minBy(elecData, 'cons').cons
+            let maxCons = _.maxBy(elecData, 'cons').cons
+            let minProd = _.minBy(elecData, 'prod').prod
+            let maxProd = _.maxBy(elecData, 'prod').prod
+
+            metadata.avg[kList[i]] = {
+                cons: totalCons / secondsLength,
+                prod: totalProd / secondsLength
+            }
+            metadata.min[kList[i]] = {
+                cons: minCons,
+                prod: minProd
+            }
+            metadata.max[kList[i]] = {
+                cons: maxCons,
+                prod: maxProd
+            }
+        }
+        // lastly, if  our trial is a 'SavedTrial' type, we will make sure we convert all these records into SavedFlowRecords
+        if (trial instanceof Trial && GameFlowElectricRecord?.fromRecords) {
+            results = GameFlowElectricRecord.fromRecords(results, trial.id);
+        }
+        trial.electricMetadata = metadata;
+        return results;
     }
 
     public static async parseCircuitDataFile(filepath: string, trial: Trial): Promise<IGameFlowCircuitTick[]> {

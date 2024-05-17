@@ -291,7 +291,7 @@ export class Trial implements ITrial {
 
         this.recordItems = (params.recordItems != undefined) ? params.recordItems : false
 
-        this.recordElectric = false // params.recordElectric;
+        this.recordElectric = (params.recordElectric != undefined) ? params.recordElectric : false
 
         this.recordCircuits = (params.recordCircuits != undefined) ? params.recordCircuits : false
 

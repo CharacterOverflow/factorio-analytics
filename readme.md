@@ -198,7 +198,7 @@ let myTrial = new Trial({
     length: 216000,
     tickInterval: 60,
     recordItems: true,
-    // recordElectric: false, // CURRENTLY DISABLED, NOT FUNCTIONAL YET
+    recordElectric: true, 
     recordCircuits: false,
     recordPollution: true,
     recordSystem: false,

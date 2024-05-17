@@ -14,8 +14,11 @@ from factory_status
 select fs.*, fr.trial_id, fr.allocated_at
 from public.factory_status fs
          inner join public.factory_request fr ON (fr.execution_id = CAST(fs.execution_id as uuid))
-where fs.execution_id = '65fd1297-8ed3-4dda-95d8-2aafffe5579b'
+where fs.execution_id = '65fd1297-8ed3-4dda-95d8-2aafffe5579b';
 
+select label, MIN(tick) as tick  from public.dataset_items where trial_id = '034851c7-b56f-4cbc-9e38-b0dde66afcaa' and label like '%science%' group by label
+
+select * from public.trial where source
 
 select *
 from public.trial
@@ -32,3 +35,15 @@ select length * trial.tick_interval / 1000, * from trial
 
 select *, length(text) from public.source;
 
+
+-- truncate trial, source, modlist, all of the tables
+truncate table public.trial cascade;
+truncate table public.source cascade;
+truncate table public.modlist cascade;
+truncate table public.factory_status cascade
+truncate table public.factory_request cascade ;
+truncate table public.dataset_system cascade
+truncate table public.dataset_pollution cascade
+truncate table public.dataset_items cascade
+truncate table public.dataset_electric cascade
+truncate table public.dataset_circuit cascade

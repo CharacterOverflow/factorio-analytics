@@ -197,6 +197,7 @@ local runExports = function(tick)
             local d_prod = diff_dicts(prod, lprod);
 
             -- After we do our calculation with lcons and lprod, we need to set them to the 'current' cons and prod
+            -- lcons and lprod means 'last consumption' and 'last production'
             lcons = cons;
             lprod = prod;
 
@@ -235,6 +236,12 @@ local runExports = function(tick)
 
             game.write_file('data/' .. UID .. '_elec.jsonl', game.table_to_json(d_elec) .. '\n',
                     true);
+
+             -- DEBUG - I am adding an additional file export for testing purposes. This will output the 'current' elecMap to a new file based on tick
+             -- its gonna be alot of data.... that's fine
+             --game.write_file('data/' .. UID .. '_debug.jsonl', game.table_to_json(elecMap) .. '\n',
+               --     true);
+
         end
         if (CIRC_TICKS ~= nil and tick == CIRC_TICKS) then
             -- do circuit export
@@ -381,8 +388,9 @@ script.on_nth_tick(5184000, function()
         setup = true;
 
         -- take a screenshot last thing before we quit
+        -- EDIT - this requires the full version of the game, and a working xserver for graphics
+        -- #TODO make this a parameter later on, and modify the backend to be able to handle this
         -- game.take_screenshot({ path = 'data/' .. UID .. '.png', show_entity_info = true }) -- DOESNT WORK ON HEADLESS
-
 
     end
 end)
