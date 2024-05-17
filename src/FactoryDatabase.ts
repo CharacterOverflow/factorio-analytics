@@ -129,7 +129,7 @@ export class FactoryDatabase {
                 length: 54000,
                 tickInterval: 300,
                 recordItems: true,
-                recordElectric: false,
+                recordElectric: true,
                 recordCircuits: true,
                 recordPollution: true,
                 recordSystem: true
