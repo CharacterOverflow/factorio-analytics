@@ -73,12 +73,12 @@ async function main() {
 
     console.log('Factory started! running trial');
 
-    const bpFile = path.join(process.cwd(), 'factory/examples/electric_study_2.bp');
+    const bpFile = path.join(process.cwd(), 'factory/examples/45SPM_mk2.bp');
     const bpStr = await fs.readFile(bpFile, 'utf8')
 
     // make a source, then run a trial with this source as well
     let source = new Source({
-        name: 'Electric Testing',
+        name: 'Electric Testing 22',
         desc: 'Gathering electric data for analysis',
         variant: 'blueprint',
         text: bpStr

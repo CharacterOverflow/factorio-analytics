@@ -146,6 +146,9 @@ export class FactoryDatabase {
         await FactoryDatabase.FactoryDB.getRepository(GameFlowItemRecord).delete({
             trial_id: trialId,
         })
+        await FactoryDatabase.FactoryDB.getRepository(GameFlowElectricRecord).delete({
+            trial_id: trialId,
+        })
         await FactoryDatabase.FactoryDB.getRepository(GameFlowPollutionRecord).delete({
             trial_id: trialId,
         })

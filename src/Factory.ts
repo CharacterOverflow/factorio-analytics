@@ -470,12 +470,6 @@ export class Factory {
                 if (createSummaries && t instanceof Trial)
                     rObj.items = DatasetAnalysis.createSummaryOfItemDataset(rObj.items)
             }
-            /*if (t.recordElectric) {
-                Logging.log('info', {message: `Analyzing electric data for trial ${t.id}`});
-                let electricDataset = new ElectricDataset(t, path.join(Factory.scriptOutputPath, 'data', t.dataFiles.electric))
-                await electricDataset.parseData()
-                rObj.electric = electricDataset;
-            }*/
             if (t.recordElectric) {
                 Logging.log('info', {message: `Analyzing electric data for trial ${t.id}`});
                 rObj.electric = {
