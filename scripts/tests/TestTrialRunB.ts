@@ -97,7 +97,7 @@ async function main() {
     await FactoryDatabase.saveTrial(t, true);
 
     // run trial
-    await Factory.analyzeTrial(t, true, true);
+    await Factory.analyzeTrial(t,true,true);
 
     console.log('trial done!');
 }

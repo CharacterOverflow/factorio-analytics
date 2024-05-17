@@ -636,46 +636,53 @@ export class Factory {
             // each line is an array with 1 object inside, containing cons and prod
             // cons and prod are both objects with double values for each field
 
+            // EDIT - this changed!
+            // each line is now an object - each KEY in this object is a NetworkID.
+            // each value of this key is now the cons/prod object
+            // cons/prod is an object with key/value pairs of item name and double value
+
             // keep an active map of all items in this tick, adding information as needed
             let elecMap = {};
             let l = JSON.parse(lines[i]);
 
-            // for each key in cons, upsert data to itemMap
-            if (l && l[0]?.cons) {
-                let co = Object.keys(l[0].cons);
-                for (let c of co) {
+            let networks = Object.keys(l);
+            for (let n of networks) {
+                let net = l[n];
+                let cons = Object.keys(net.cons);
+                for (let c of cons) {
                     // the item record if it exists
                     let ir: IGameFlowElectricTick = elecMap[c];
 
                     if (ir) {
                         // Update the cons value, as there is nothing else it can be.
-                        ir.cons = l[0].cons[c];
+                        ir.cons = net.cons[c];
                     } else {
                         // No object record exists yet - create and set it
-                        elecMap[c] = {
+                        elecMap[`${c}:${n}`] = {
                             label: c,
+                            network: Number.parseInt(n),
                             tick: (i + 1) * trial.tickInterval,
-                            cons: l[0].cons[c],
+                            cons: net.cons[c],
                             prod: 0,
                         } as IGameFlowElectricTick;
                     }
                 }
-            }
-            if (l && l[0]?.prod) {
-                for (let p of Object.keys(l[0].prod)) {
+                let prod = Object.keys(net.prod);
+                for (let p of prod) {
                     // the item record if it exists
                     let ir: IGameFlowElectricTick = elecMap[p];
 
                     if (ir) {
                         // Update the cons value, as there is nothing else it can be.
-                        ir.prod = l[0].prod[p];
+                        ir.prod = net.prod[p];
                     } else {
                         // No object record exists yet - create and set it
-                        elecMap[p] = {
+                        elecMap[`${p}:${n}`] = {
                             label: p,
+                            network: Number.parseInt(n),
                             tick: (i + 1) * trial.tickInterval,
                             cons: 0,
-                            prod: l[0].prod[p],
+                            prod: net.prod[p],
                         } as IGameFlowElectricTick;
                     }
                 }
@@ -694,7 +701,8 @@ export class Factory {
         let metadata = {
             avg: {},
             min: {},
-            max: {}
+            max: {},
+            networkCount: _.uniqBy(results, 'network').length
         }
         for (let i = 0; i < kList.length; i++) {
 

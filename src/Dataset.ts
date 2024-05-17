@@ -65,6 +65,7 @@ export interface IGameFlowItemTick extends IGameFlow {
 }
 
 export interface IGameFlowElectricTick extends IGameFlow {
+    network: number;
     cons: number;
     prod: number;
 }
@@ -173,6 +174,9 @@ export class GameFlowElectricRecord implements IGameFlowElectricTick {
     @PrimaryColumn()
     label: string;
 
+    @PrimaryColumn()
+    network: number;
+
     @PrimaryColumn({type: 'integer'})
     tick: number;
 
@@ -192,6 +196,7 @@ export class GameFlowElectricRecord implements IGameFlowElectricTick {
 
         this.trial_id = trialId
         this.label = params.label;
+        this.network = params.network;
         this.tick = params.tick;
         this.cons = params.cons;
         this.prod = params.prod;
