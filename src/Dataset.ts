@@ -174,7 +174,7 @@ export class GameFlowElectricRecord implements IGameFlowElectricTick {
     @PrimaryColumn()
     label: string;
 
-    @PrimaryColumn()
+    @PrimaryColumn({type: 'integer'})
     network: number;
 
     @PrimaryColumn({type: 'integer'})
