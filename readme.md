@@ -12,7 +12,7 @@ _And yes, it can use mods. With limits_
 
 - [Setup](#getting-started)
 - [Install](#install-via-npm)
-- [Code Examples](#code-examples)
+- [Testing and Code Examples](#code-examples)
 - [Analyze and Use Data](#analyze-and-use-data)
 - [Database](#using-a-database-ide)
 
@@ -112,6 +112,10 @@ You can then use the built-in 'Analyze' functionality to read and analyze this d
 purpose
 
 ## Code Examples
+
+For more examples, see scripts/examples
+
+For more core tests, see scripts/tests
 
 ### Starting the Factory
 
