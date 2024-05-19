@@ -532,6 +532,7 @@ export class Factory {
 
     public static async parseItemDataFile(filepath: string, trial: Trial): Promise<IGameFlowItemTick[] | GameFlowItemRecord[]> {
         let raw = await fs.readFile(filepath, 'utf-8');
+        let uniqueLabels = new Set<string>();
 
         let results: IGameFlowItemTick[] = [];
         let lines = raw.split('\n');
@@ -562,6 +563,7 @@ export class Factory {
                         cons: lineParsed.cons[c],
                         prod: 0,
                     } as IGameFlowItemTick;
+                    uniqueLabels.add(c);
                 }
             }
 
@@ -582,6 +584,7 @@ export class Factory {
                         cons: 0,
                         prod: lineParsed.prod[p],
                     } as IGameFlowItemTick;
+                    uniqueLabels.add(p);
                 }
             }
 
@@ -591,6 +594,25 @@ export class Factory {
                 results.push(itemMap[ik]);
             }
         }
+
+        for(let ul of uniqueLabels) {
+            let ulData = results.filter((v) => v.label === ul);
+            let minTick = _.minBy(ulData, 'tick').tick;
+
+            // if the minTick is not 0, we need to add padding, spaced by the trial interval
+            // Dont need to worry about maxTick, as a label will never disappear after it starts
+            if (minTick > 1) {
+                for (let i = 0; i < minTick; i += trial.tickInterval) {
+                    results.push({
+                        label: ul,
+                        tick: i,
+                        cons: 0,
+                        prod: 0
+                    })
+                }
+            }
+        }
+
         // for each item, calculate the average and total for  each item
         let g = _.groupBy(results, 'label');
         let kList = Object.keys(g);
@@ -627,7 +649,13 @@ export class Factory {
         if (filepath == null)
             throw new Error('Cannot parse electric data file! Filepath is null');
 
+        // #TODO
+        // if a label starts showing up at tick 1800, there are no records from ticks 1-1799
+        // there SHOULD be ticks in that range (at interval spacing) but show as 0 value
+        // they are not recorded in the file like this, so we are going to be adding padding to account for it
+
         let raw = await fs.readFile(filepath, 'utf-8');
+        let uniqueLabels = new Set<string>();
 
         let results: IGameFlowElectricTick[] = [];
         let lines = raw.split('\n');
@@ -635,11 +663,6 @@ export class Factory {
         for(let i = 0; i < lines.length - 1; i++) {
             // each line is an array with 1 object inside, containing cons and prod
             // cons and prod are both objects with double values for each field
-
-            // EDIT - this changed!
-            // each line is now an object - each KEY in this object is a NetworkID.
-            // each value of this key is now the cons/prod object
-            // cons/prod is an object with key/value pairs of item name and double value
 
             // keep an active map of all items in this tick, adding information as needed
             let elecMap = {};
@@ -665,6 +688,7 @@ export class Factory {
                             cons: net.cons[c],
                             prod: 0,
                         } as IGameFlowElectricTick;
+                        uniqueLabels.add(`${c}:${n}`)
                     }
                 }
                 let prod = Object.keys(net.prod);
@@ -684,14 +708,35 @@ export class Factory {
                             cons: 0,
                             prod: net.prod[p],
                         } as IGameFlowElectricTick;
+                        uniqueLabels.add(`${p}:${n}`)
                     }
                 }
             }
 
             // Now that the itemMap is populated, push all items to the results array for this tick. Convert all keys to an array, grabbing values from the map in a loop
-            let itemKeys = Object.keys(elecMap);
-            for (let ik of itemKeys) {
+            let elecKeys = Object.keys(elecMap);
+            for (let ik of elecKeys) {
                 results.push(elecMap[ik]);
+            }
+        }
+
+        // Lastly, we need to add padding from tick 0 -> min tick of each given uniqueLabel
+        for(let ul of uniqueLabels) {
+            let ulData = results.filter((v) => `${v.label}:${v.network}` === ul);
+            let minTick = _.minBy(ulData, 'tick').tick;
+
+            // if the minTick is not 0, we need to add padding, spaced by the trial interval
+            // Dont need to worry about maxTick, as a label will never disappear after it starts
+            if (minTick > 1) {
+                for (let i = 0; i < minTick; i += trial.tickInterval) {
+                    results.push({
+                        label: ul.split(':')[0],
+                        network: Number.parseInt(ul.split(':')[1]),
+                        tick: i,
+                        cons: 0,
+                        prod: 0
+                    })
+                }
             }
         }
 

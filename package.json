@@ -1,6 +1,6 @@
 {
   "name": "factorio-analytics",
-  "version": "3.3.2",
+  "version": "3.3.4",
   "description": "A package for benchmarking Factorio blueprints, providing detailed game data down to the tick",
   "repository": {
     "type": "github",

@@ -78,7 +78,7 @@ async function main() {
 
     // make a source, then run a trial with this source as well
     let source = new Source({
-        name: 'Electric Testing 22',
+        name: 'Electric 45 Testing 22',
         desc: 'Gathering electric data for analysis',
         variant: 'blueprint',
         text: bpStr
