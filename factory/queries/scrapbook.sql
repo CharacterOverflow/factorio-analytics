@@ -35,6 +35,14 @@ select length * trial.tick_interval / 1000, * from trial
 
 select *, length(text) from public.source;
 
+select tick, label, trial_id from public.dataset_electric where tick = 0
+
+select * from public.trial where id = '11819dcf-1203-4076-8cfd-fd174ddf49d3'
+
+select * from public.dataset_items where trial_id = '2ff2f445-8535-4338-b15f-4b206878c4ca' and label = 'copper-cable' order by tick
+
+select * from public.dataset_electric where trial_id = '2ff2f445-8535-4338-b15f-4b206878c4ca' and label = 'roboport' order by tick
+
 
 -- truncate trial, source, modlist, all of the tables
 truncate table public.trial cascade;
